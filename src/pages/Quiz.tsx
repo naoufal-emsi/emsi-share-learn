@@ -206,7 +206,7 @@ const StudentQuizView: React.FC<{
                   <Progress 
                     value={quiz.score} 
                     className="h-2" 
-                    indicator={quiz.score >= 70 ? "bg-green-500" : "bg-orange-500"}
+                    indicatorClassName={quiz.score >= 70 ? "bg-green-500" : "bg-orange-500"}
                   />
                 </div>
                 <div className="space-y-2 text-sm">
@@ -374,7 +374,6 @@ const TeacherQuizView: React.FC = () => {
         </div>
       </TabsContent>
       
-      {/* Other tabs would have similar content */}
       <TabsContent value="active" className="mt-0">
         <div className="text-center py-8">
           <p className="text-muted-foreground">Active quizzes will be displayed here.</p>
