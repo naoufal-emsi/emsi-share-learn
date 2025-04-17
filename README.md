@@ -1,73 +1,115 @@
-# Welcome to your Lovable project
 
-## Project info
+# EMSI Share - Plateforme Collaborative d'Apprentissage
 
-**URL**: https://lovable.dev/projects/eb025727-0424-422f-9029-f3c687893745
+EMSI Share est une plateforme éducative qui modernise l'apprentissage via des ressources pédagogiques, des quiz interactifs, un forum collaboratif et des événements.
 
-## How can I edit this code?
+## Architecture
 
-There are several ways of editing your application.
+- **Frontend**: React avec Tailwind CSS, Shadcn UI
+- **Backend**: Django REST Framework
+- **Base de données**: PostgreSQL
 
-**Use Lovable**
+## Installation et configuration
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/eb025727-0424-422f-9029-f3c687893745) and start prompting.
+### Prérequis
 
-Changes made via Lovable will be committed automatically to this repo.
+- Python 3.8+
+- Node.js 18+
+- PostgreSQL
 
-**Use your preferred IDE**
+### Configuration du Backend
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+1. Cloner le dépôt
+2. Naviguer vers le dossier backend
+3. Installer les dépendances Python:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Configurer la base de données PostgreSQL:
+   ```bash
+   # Créer une base de données nommée emsi_share
+   createdb emsi_share
+   # OU
+   psql -U postgres -c "CREATE DATABASE emsi_share WITH ENCODING 'UTF8';"
+   ```
+5. Appliquer les migrations:
+   ```bash
+   python manage.py migrate
+   ```
+6. Créer un super-utilisateur (administrateur):
+   ```bash
+   python create_admin.py
+   # OU
+   python manage.py createsuperuser
+   ```
+7. Charger les données initiales (optionnel):
+   ```bash
+   python manage.py loaddata initial_data.json
+   ```
+8. Démarrer le serveur:
+   ```bash
+   python manage.py runserver
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Configuration du Frontend
 
-Follow these steps:
+1. Naviguer vers le dossier racine du projet
+2. Installer les dépendances:
+   ```bash
+   npm install
+   ```
+3. Démarrer le serveur de développement:
+   ```bash
+   npm run dev
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Comptes de démonstration
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+- **Administrateur**:
+  - Email: admin@emsi.ma
+  - Mot de passe: adminpassword
 
-# Step 3: Install the necessary dependencies.
-npm i
+- **Enseignant**:
+  - Email: teacher@emsi.ma
+  - Mot de passe: password
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- **Étudiant**:
+  - Email: student@emsi.ma
+  - Mot de passe: password
 
-**Edit a file directly in GitHub**
+## Fonctionnalités principales
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- **Authentification**: Système complet d'inscription et connexion
+- **Gestion des ressources**: Chargement, partage et recherche de documents
+- **Quiz interactifs**: Création et participation à des quiz
+- **Forum de discussion**: Communication entre étudiants et enseignants
+- **Calendrier d'événements**: Organisation et inscription aux événements
 
-**Use GitHub Codespaces**
+## API Endpoints
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Le backend expose des API RESTful accessibles via:
 
-## What technologies are used for this project?
+- **Authentification**: `/api/token/`, `/api/users/register/`
+- **Ressources**: `/api/resources/`
+- **Quiz**: `/api/quizzes/`
+- **Forum**: `/api/forum/topics/`, `/api/forum/posts/`, `/api/forum/replies/`
+- **Événements**: `/api/events/`
 
-This project is built with:
+Documentation complète de l'API accessible via l'interface d'administration Django.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Déploiement
 
-## How can I deploy this project?
+Pour un déploiement en production:
 
-Simply open [Lovable](https://lovable.dev/projects/eb025727-0424-422f-9029-f3c687893745) and click on Share -> Publish.
+1. Configurer les variables d'environnement appropriées
+2. Utiliser gunicorn ou uwsgi pour le backend Django
+3. Construire l'application React pour la production: `npm run build`
+4. Servir les fichiers statiques via Nginx
 
-## Can I connect a custom domain to my Lovable project?
+## Contribuer
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+1. Forker le projet
+2. Créer une branche pour votre fonctionnalité (`git checkout -b feature/amazing-feature`)
+3. Commiter vos changements (`git commit -m 'Add some amazing feature'`)
+4. Pousser vers la branche (`git push origin feature/amazing-feature`)
+5. Ouvrir une Pull Request
