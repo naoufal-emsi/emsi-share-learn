@@ -9,7 +9,7 @@ class Quiz(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
-    duration_minutes = models.PositiveIntegerField(default=30)
+    duration_minutes = models.PositiveIntegerField(default=30)  # Duration in minutes
     
     def __str__(self):
         return self.title
@@ -18,14 +18,15 @@ class Quiz(models.Model):
         verbose_name_plural = "Quizzes"
 
 class Question(models.Model):
-    class QuestionType(models.TextChoices):
-        TEXT = 'text', 'Text'
-        IMAGE = 'image', 'Image'
-        VIDEO = 'video', 'Video'
+    QUESTION_TYPES = (
+        ('text', 'Text'),
+        ('image', 'Image'),
+        ('video', 'Video'),
+    )
     
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='questions')
     text = models.TextField()
-    question_type = models.CharField(max_length=10, choices=QuestionType.choices, default=QuestionType.TEXT)
+    question_type = models.CharField(max_length=10, choices=QUESTION_TYPES, default='text')
     image = models.ImageField(upload_to='quiz_questions/', null=True, blank=True)
     video_url = models.URLField(null=True, blank=True)
     points = models.PositiveIntegerField(default=1)
