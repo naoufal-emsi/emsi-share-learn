@@ -112,6 +112,21 @@ const Quiz: React.FC = () => {
       isCorrect
     }]);
 
+    // Show toast for correct/incorrect answer
+    if (isCorrect) {
+      toast({
+        title: "Correct!",
+        description: "Good job, that's the right answer!",
+        variant: "default",
+      });
+    } else {
+      toast({
+        title: "Incorrect",
+        description: `The correct answer was: ${currentQuestion.correctAnswer}`,
+        variant: "destructive",
+      });
+    }
+
     // Move to next question or show results
     if (currentQuestionIndex < quizData.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
@@ -127,6 +142,11 @@ const Quiz: React.FC = () => {
     setScore(0);
     setShowResults(false);
     setUserAnswers([]);
+    toast({
+      title: "Quiz Restarted",
+      description: "Good luck on your new attempt!",
+      variant: "default",
+    });
   };
 
   return (
