@@ -47,6 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const mockUsers = [
       { id: '1', name: 'Student Demo', email: 'student@emsi.ma', password: 'password', role: 'student', avatar: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?auto=format&fit=crop&q=80&w=100' },
       { id: '2', name: 'Teacher Demo', email: 'teacher@emsi.ma', password: 'password', role: 'teacher', avatar: 'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?auto=format&fit=crop&q=80&w=100' },
+      { id: '3', name: 'Admin Demo', email: 'admin@emsi.ma', password: 'password', role: 'admin', avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=100' },
     ];
     
     const foundUser = mockUsers.find(u => u.email === email && u.password === password);

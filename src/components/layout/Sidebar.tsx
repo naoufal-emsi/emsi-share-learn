@@ -10,7 +10,8 @@ import {
   Home, 
   Users, 
   Calendar,
-  GraduationCap
+  GraduationCap,
+  Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -25,10 +26,14 @@ const Sidebar: React.FC = () => {
     { name: 'Resources', href: '/resources', icon: FileText },
     { name: 'Quiz', href: '/quiz', icon: GraduationCap },
     { name: 'Forum', href: '/forum', icon: MessageSquare },
-    ...(user?.role === 'teacher' ? [
+    ...(user?.role === 'teacher' || user?.role === 'admin' ? [
       { name: 'Analytics', href: '/analytics', icon: BarChart },
     ] : []),
     { name: 'Events', href: '/events', icon: Calendar },
+    ...(user?.role === 'admin' ? [
+      { name: 'Users', href: '/users', icon: Users },
+      { name: 'Settings', href: '/settings', icon: Settings },
+    ] : []),
   ];
 
   return (
@@ -36,7 +41,7 @@ const Sidebar: React.FC = () => {
       <div className="p-4">
         <div className="py-3 px-4 rounded-md bg-primary bg-opacity-10 flex items-center mb-4">
           <div className="flex items-center justify-center bg-primary text-white rounded-full w-10 h-10">
-            {user?.role === 'teacher' ? 'T' : 'S'}
+            {user?.role === 'admin' ? 'A' : user?.role === 'teacher' ? 'T' : 'S'}
           </div>
           <div className="ml-3">
             <p className="text-sm font-medium">{user?.name}</p>
