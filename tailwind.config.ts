@@ -26,13 +26,13 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#9b87f5',
-					light: '#b3a4f7',
-					dark: '#7E69AB',
+					DEFAULT: '#4ade80', // Changed from #9b87f5 to a medium green
+					light: '#86efac', // Changed from #b3a4f7 to a light green
+					dark: '#22c55e', // Changed from #7E69AB to a dark green
 					foreground: 'hsl(var(--primary-foreground))'
 				},
 				secondary: {
-					DEFAULT: '#6E59A5',
+					DEFAULT: '#10b981', // Changed from #6E59A5 to a teal green
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
 				destructive: {
@@ -58,7 +58,7 @@ export default {
 				neutral: {
 					DEFAULT: '#8E9196',
 					dark: '#1A1F2C',
-					light: '#D6BCFA'
+					light: '#bbf7d0' // Changed from #D6BCFA (light purple) to light green
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
