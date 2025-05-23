@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +10,8 @@ import {
   Users, 
   Calendar,
   GraduationCap,
-  Settings
+  Settings,
+  DoorOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -26,6 +26,12 @@ const Sidebar: React.FC = () => {
     { name: 'Resources', href: '/resources', icon: FileText },
     { name: 'Quiz', href: '/quiz', icon: GraduationCap },
     { name: 'Forum', href: '/forum', icon: MessageSquare },
+    ...(user?.role === 'teacher' ? [
+      { name: 'My Rooms', href: '/rooms', icon: DoorOpen },
+    ] : []),
+    ...(user?.role === 'student' ? [
+      { name: 'My Rooms', href: '/student-rooms', icon: DoorOpen },
+    ] : []),
     ...(user?.role === 'teacher' || user?.role === 'admin' ? [
       { name: 'Analytics', href: '/analytics', icon: BarChart },
     ] : []),
