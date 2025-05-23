@@ -18,25 +18,25 @@ const Header: React.FC = () => {
   const { user, logout } = useAuth();
 
   return (
-    <header className="bg-white border-b border-gray-200 py-3 px-4 md:px-6 flex items-center justify-between">
+    <header className="bg-gradient-to-r from-primary to-primary-light shadow-sm border-b border-gray-200 py-3 px-4 md:px-6 flex items-center justify-between">
       <div className="flex items-center">
         <Link to="/" className="flex items-center">
-          <h1 className="text-2xl font-bold text-primary">EMSI Share</h1>
+          <h1 className="text-2xl font-bold text-white">EMSI Share</h1>
         </Link>
       </div>
       
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative text-white hover:bg-white/20">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-destructive"></span>
+          <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-accent"></span>
         </Button>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-white/20">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.avatar} alt={user?.name} />
-                <AvatarFallback>{user?.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback className="bg-white text-primary">{user?.name.charAt(0)}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

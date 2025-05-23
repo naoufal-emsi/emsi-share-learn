@@ -26,17 +26,17 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#22c55e', // Darkened from #4ade80 to #22c55e
-					light: '#4ade80', // Darkened from #86efac to #4ade80
-					dark: '#15803d', // Darkened from #22c55e to #15803d
+					DEFAULT: '#0369a1', // Deep blue
+					light: '#0ea5e9', // Lighter blue
+					dark: '#1e3a8a', // Darker blue
 					foreground: 'hsl(var(--primary-foreground))'
 				},
 				secondary: {
-					DEFAULT: '#0d9488', // Darkened from #10b981 to #0d9488
+					DEFAULT: '#64748b', // Slate blue-gray
 					foreground: 'hsl(var(--secondary-foreground))'
 				},
 				destructive: {
-					DEFAULT: '#ea384c',
+					DEFAULT: '#dc2626', // Modern red
 					foreground: 'hsl(var(--destructive-foreground))'
 				},
 				muted: {
@@ -44,7 +44,7 @@ export default {
 					foreground: 'hsl(var(--muted-foreground))'
 				},
 				accent: {
-					DEFAULT: '#33C3F0',
+					DEFAULT: '#f59e0b', // Warm amber
 					foreground: 'hsl(var(--accent-foreground))'
 				},
 				popover: {
@@ -56,9 +56,9 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				neutral: {
-					DEFAULT: '#8E9196',
-					dark: '#1A1F2C',
-					light: '#a3e635' // Darkened from #bbf7d0 to #a3e635
+					DEFAULT: '#64748b', // Slate
+					dark: '#1e293b', // Dark slate
+					light: '#fef3c7' // Light amber
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
