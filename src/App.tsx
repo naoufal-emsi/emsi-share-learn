@@ -19,6 +19,9 @@ import Analytics from "./pages/Analytics";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Rooms from "./pages/Rooms";
+import StudentRooms from "./pages/StudentRooms";
+import RoomDetails from "./pages/RoomDetails";
 
 const queryClient = new QueryClient();
 
