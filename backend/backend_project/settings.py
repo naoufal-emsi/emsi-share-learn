@@ -16,6 +16,13 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
+    # Local apps
+    'users',
+    'core',
+    'rooms',
+    'resources',
+    'quizzes',
+    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -28,12 +35,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework_simplejwt',
     
-    # Local apps
-    'core',
-    'users',
-    'rooms',
-    'resources',
-    'quizzes',
+    
 ]
 
 MIDDLEWARE = [
@@ -139,6 +141,6 @@ SIMPLE_JWT = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
+    'http://localhost:8080',
     'http://localhost:5173',
 ]

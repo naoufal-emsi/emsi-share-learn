@@ -1,4 +1,3 @@
-
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -18,7 +17,7 @@ class RoomViewSet(viewsets.ModelViewSet):
             return Room.objects.filter(owner=user)
         elif user.role == 'student':
             # Students see rooms they joined
-            return Room.objects.filter(participants=user)
+            return Room.objects.filter(roomparticipant__user=user)
         elif user.role == 'admin':
             # Admins see all rooms
             return Room.objects.all()
