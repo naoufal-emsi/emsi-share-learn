@@ -127,8 +127,19 @@ export const resourcesAPI = {
 
 // Quizzes API
 export const quizzesAPI = {
+  // Get public quizzes for sidebar
+  getPublicQuizzes: async () => {
+    return apiRequest('/quizzes/?public=true');
+  },
+  
+  // Get room-specific quizzes
   getQuizzes: async (roomId: string) => {
     return apiRequest(`/quizzes/?room=${roomId}`);
+  },
+  
+  // Get quiz details
+  getQuizDetails: async (quizId: string) => {
+    return apiRequest(`/quizzes/${quizId}/`);
   },
   
   createQuiz: async (quizData: any) => {
@@ -143,5 +154,26 @@ export const quizzesAPI = {
       method: 'POST',
       body: JSON.stringify({ answers }),
     });
+  },
+  
+  // Get quiz resources
+  getQuizResources: async (quizId: string) => {
+    return apiRequest(`/quizzes/${quizId}/resources/`);
+  },
+  
+  // Download quiz resource
+  downloadQuizResource: async (resourceId: string) => {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/quizzes/resource/${resourceId}/download/`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to download resource');
+    }
+    
+    return response.blob();
   },
 };
