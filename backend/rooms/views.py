@@ -14,13 +14,13 @@ class RoomViewSet(viewsets.ModelViewSet):
         
         if user.role == 'teacher':
             # Teachers see rooms they created
-            return Room.objects.filter(owner=user)
+            return Room.objects.filter(owner=user).order_by('created_at')
         elif user.role == 'student':
             # Students see rooms they joined
-            return Room.objects.filter(roomparticipant__user=user)
+            return Room.objects.filter(roomparticipant__user=user).order_by('created_at')
         elif user.role == 'admin':
             # Admins see all rooms
-            return Room.objects.all()
+            return Room.objects.all().order_by('created_at')
         
         return Room.objects.none()
     
@@ -28,6 +28,11 @@ class RoomViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return RoomDetailSerializer
         return RoomSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
     def join(self, request):

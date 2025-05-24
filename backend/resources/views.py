@@ -1,4 +1,3 @@
-
 from rest_framework import viewsets, permissions
 from .models import Resource
 from .serializers import ResourceSerializer
@@ -11,7 +10,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         room_id = self.request.query_params.get('room', None)
         if room_id:
-            return Resource.objects.filter(room_id=room_id)
+            return Resource.objects.filter(room_id=room_id).order_by('uploaded_at')
         return Resource.objects.none()
     
     def get_permissions(self):

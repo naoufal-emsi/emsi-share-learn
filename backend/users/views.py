@@ -1,4 +1,3 @@
-
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -29,5 +28,5 @@ class UserListView(generics.ListAPIView):
         # Only allow teachers and admins to see user lists
         user = self.request.user
         if user.role in ['teacher', 'admin']:
-            return User.objects.all()
+            return User.objects.all().order_by('date_joined')
         return User.objects.filter(id=user.id)

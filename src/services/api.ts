@@ -1,5 +1,5 @@
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 // API utility functions
 const getAuthToken = () => localStorage.getItem('emsi_access');
@@ -33,7 +33,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 // Auth API
 export const authAPI = {
   login: async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE_URL.replace('/api', '')}/api/token/`, {
+    const response = await fetch(`${API_BASE_URL}/token/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),

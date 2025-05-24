@@ -1,4 +1,3 @@
-
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -12,6 +11,7 @@ from .serializers import (
 from rooms.permissions import IsOwnerOrReadOnly
 
 class QuizViewSet(viewsets.ModelViewSet):
+    queryset = Quiz.objects.all().order_by('id')
     serializer_class = QuizSerializer
     permission_classes = [permissions.IsAuthenticated]
     
@@ -21,10 +21,10 @@ class QuizViewSet(viewsets.ModelViewSet):
         
         if is_public == 'true':
             # Return only public quizzes (not assigned to any room)
-            return Quiz.objects.filter(is_public=True, room__isnull=True)
+            return Quiz.objects.filter(is_public=True, room__isnull=True).order_by('created_at')
         elif room_id:
             # Return quizzes assigned to specific room
-            return Quiz.objects.filter(room_id=room_id)
+            return Quiz.objects.filter(room_id=room_id).order_by('created_at')
         
         return Quiz.objects.none()
     
@@ -128,5 +128,5 @@ class QuestionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         quiz_id = self.request.query_params.get('quiz', None)
         if quiz_id:
-            return Question.objects.filter(quiz_id=quiz_id)
+            return Question.objects.filter(quiz_id=quiz_id).order_by('order')
         return Question.objects.none()
