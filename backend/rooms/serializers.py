@@ -1,4 +1,3 @@
-
 from rest_framework import serializers
 from .models import Room, RoomParticipant
 import random
@@ -26,10 +25,10 @@ class RoomSerializer(serializers.ModelSerializer):
         return False
     
     def get_resources_count(self, obj):
-        return obj.resource_set.count()
+        return obj.resources.count()
     
     def get_quizzes_count(self, obj):
-        return obj.quiz_set.count()
+        return obj.quizzes.count()
     
     def create(self, validated_data):
         # Generate a random room ID
