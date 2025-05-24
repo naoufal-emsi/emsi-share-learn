@@ -8,34 +8,60 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { BookOpen, FileText, Search, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { roomsAPI } from '@/services/api';
+import { toast } from 'sonner';
 
 interface Room {
   id: string;
   name: string;
   subject: string;
   description: string;
-  participants: string[];
-  createdAt: string;
-  resources: any[];
-  quizzes: any[];
+  participants_count: number;
+  resources_count: number;
+  quizzes_count: number;
+  created_at: string;
 }
 
 const StudentRooms: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load joined rooms from localStorage
-    const savedRooms = localStorage.getItem('studentRooms');
-    if (savedRooms) {
-      setRooms(JSON.parse(savedRooms));
-    }
+    const fetchRooms = async () => {
+      try {
+        const data = await roomsAPI.getRooms();
+        setRooms(data);
+      } catch (error) {
+        console.error('Failed to fetch rooms:', error);
+        toast.error('Failed to load rooms');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRooms();
   }, []);
+
+  const handleRoomJoined = () => {
+    // Refresh rooms list after joining
+    window.location.reload();
+  };
 
   const filteredRooms = rooms.filter(room =>
     room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     room.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div>Loading rooms...</div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -48,7 +74,7 @@ const StudentRooms: React.FC = () => {
             </p>
           </div>
           
-          <JoinRoomDialog />
+          <JoinRoomDialog onRoomJoined={handleRoomJoined} />
         </div>
 
         <div className="relative">
@@ -92,11 +118,11 @@ const StudentRooms: React.FC = () => {
                   <div className="flex space-x-4 text-sm mb-4">
                     <div className="flex items-center">
                       <FileText className="h-4 w-4 mr-1 text-primary" />
-                      <span>{room.resources.length} Resources</span>
+                      <span>{room.resources_count} Resources</span>
                     </div>
                     <div className="flex items-center">
                       <BookOpen className="h-4 w-4 mr-1 text-accent" />
-                      <span>{room.quizzes.length} Quizzes</span>
+                      <span>{room.quizzes_count} Quizzes</span>
                     </div>
                   </div>
                   <Link to={`/rooms/${room.id}`}>

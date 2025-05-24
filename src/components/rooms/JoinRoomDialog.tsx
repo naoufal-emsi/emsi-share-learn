@@ -7,14 +7,20 @@ import { Label } from '@/components/ui/label';
 import { UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { roomsAPI } from '@/services/api';
 
-const JoinRoomDialog: React.FC = () => {
+interface JoinRoomDialogProps {
+  onRoomJoined?: () => void;
+}
+
+const JoinRoomDialog: React.FC<JoinRoomDialogProps> = ({ onRoomJoined }) => {
   const [open, setOpen] = useState(false);
   const [roomId, setRoomId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleJoinRoom = () => {
+  const handleJoinRoom = async () => {
     if (!roomId.trim()) {
       toast({
         title: "Error",
@@ -24,41 +30,33 @@ const JoinRoomDialog: React.FC = () => {
       return;
     }
 
-    // Get all teacher rooms from localStorage
-    const teacherRooms = localStorage.getItem('teacherRooms');
-    if (teacherRooms) {
-      const rooms = JSON.parse(teacherRooms);
-      const room = rooms.find((r: any) => r.id === roomId.trim().toUpperCase());
+    setIsLoading(true);
+    
+    try {
+      await roomsAPI.joinRoom(roomId.trim().toUpperCase());
       
-      if (room) {
-        // Add to student's joined rooms
-        const studentRooms = JSON.parse(localStorage.getItem('studentRooms') || '[]');
-        if (!studentRooms.find((r: any) => r.id === room.id)) {
-          studentRooms.push(room);
-          localStorage.setItem('studentRooms', JSON.stringify(studentRooms));
-        }
-        
-        toast({
-          title: "Successfully Joined!",
-          description: `You have joined the room: ${room.name}`,
-        });
-        
-        setRoomId('');
-        setOpen(false);
-        navigate(`/rooms/${room.id}`);
-      } else {
-        toast({
-          title: "Room Not Found",
-          description: "Please check the room ID and try again",
-          variant: "destructive"
-        });
-      }
-    } else {
       toast({
-        title: "Room Not Found",
+        title: "Successfully Joined!",
+        description: `You have joined the room with ID: ${roomId.trim().toUpperCase()}`,
+      });
+      
+      setRoomId('');
+      setOpen(false);
+      
+      if (onRoomJoined) {
+        onRoomJoined();
+      } else {
+        navigate(`/rooms/${roomId.trim().toUpperCase()}`);
+      }
+    } catch (error) {
+      console.error('Failed to join room:', error);
+      toast({
+        title: "Failed to Join Room",
         description: "Please check the room ID and try again",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -90,7 +88,13 @@ const JoinRoomDialog: React.FC = () => {
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={handleJoinRoom}>Join Room</Button>
+          <Button 
+            type="submit" 
+            onClick={handleJoinRoom}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Joining...' : 'Join Room'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
