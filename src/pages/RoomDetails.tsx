@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, FileText, BookOpen, Download, Upload, Plus } from 'lucide-react';
+import { Copy, FileText, BookOpen, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddResourceDialog from '@/components/rooms/AddResourceDialog';
 import AddQuizDialog from '@/components/rooms/AddQuizDialog';
@@ -37,17 +37,37 @@ const RoomDetails: React.FC = () => {
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId) return;
-      
+      setLoading(true);
       try {
         const [roomData, resourcesData, quizzesData] = await Promise.all([
           roomsAPI.getRoomDetails(roomId),
           resourcesAPI.getResources(roomId),
           quizzesAPI.getQuizzes(roomId)
         ]);
-        
         setRoom(roomData);
-        setResources(resourcesData);
-        setQuizzes(quizzesData);
+
+        // Defensive: handle array or paginated object
+        let resourceArr = [];
+        if (Array.isArray(resourcesData)) {
+          resourceArr = resourcesData;
+        } else if (resourcesData && Array.isArray(resourcesData.results)) {
+          resourceArr = resourcesData.results;
+        } else {
+          resourceArr = [];
+        }
+        setResources(resourceArr);
+
+        // Defensive for quizzes too, if needed
+        let quizArr = [];
+        if (Array.isArray(quizzesData)) {
+          quizArr = quizzesData;
+        } else if (quizzesData && Array.isArray(quizzesData.results)) {
+          quizArr = quizzesData.results;
+        } else {
+          quizArr = [];
+        }
+        setQuizzes(quizArr);
+
       } catch (error) {
         console.error('Failed to fetch room data:', error);
         toast({
@@ -156,10 +176,14 @@ const RoomDetails: React.FC = () => {
                 <AddResourceDialog onResourceAdded={handleResourceAdded} />
               )}
             </div>
-            
-            {resources.length === 0 ? (
+            {/* Defensive check for resources array */}
+            {Array.isArray(resources) && resources.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No resources available yet</p>
+              </div>
+            ) : !Array.isArray(resources) ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Resource data is unavailable or invalid.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -167,7 +191,7 @@ const RoomDetails: React.FC = () => {
                   <Card key={resource.id}>
                     <CardHeader>
                       <CardTitle className="text-base">{resource.title}</CardTitle>
-                      <CardDescription>{resource.type.toUpperCase()}</CardDescription>
+                      <CardDescription>{resource.type?.toUpperCase?.() || ''}</CardDescription>
                     </CardHeader>
                     <CardContent>
                       {resource.description && (
@@ -183,7 +207,6 @@ const RoomDetails: React.FC = () => {
               </div>
             )}
           </TabsContent>
-          
           <TabsContent value="quizzes" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Room Quizzes</h2>
