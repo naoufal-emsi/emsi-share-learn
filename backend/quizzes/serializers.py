@@ -25,17 +25,6 @@ class QuestionSerializer(serializers.ModelSerializer):
             Option.objects.create(question=question, **option_data)
         
         return question
-    
-    def update(self, instance, validated_data):
-        options_data = validated_data.pop('options', None)
-        instance = super().update(instance, validated_data)
-        
-        if options_data:
-            instance.options.all().delete()
-            for option_data in options_data:
-                Option.objects.create(question=instance, **option_data)
-        
-        return instance
 
 class QuizResourceSerializer(serializers.ModelSerializer):
     file_size = serializers.SerializerMethodField()
@@ -43,7 +32,7 @@ class QuizResourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizResource
         fields = ['id', 'title', 'file', 'filename', 'uploaded_by', 'uploaded_at', 'file_size']
-        read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'file_size']
+        read_only_fields = ['id', 'uploaded_by', 'uploaded_at']
     
     def get_file_size(self, obj):
         return obj.file.size if obj.file else None
@@ -95,8 +84,4 @@ class QuizResultSerializer(serializers.ModelSerializer):
         return obj.quiz.questions.count()
     
     def get_questions_correct(self, obj):
-        correct_count = 0
-        for answer in obj.answers.all():
-            if answer.selected_option and answer.selected_option.is_correct:
-                correct_count += 1
-        return correct_count
+        return obj.answers.filter(is_correct=True).count()

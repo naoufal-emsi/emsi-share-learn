@@ -1,3 +1,4 @@
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -20,10 +21,8 @@ class QuizViewSet(viewsets.ModelViewSet):
         is_public = self.request.query_params.get('public', None)
         
         if is_public == 'true':
-            # Return only public quizzes (not assigned to any room)
             return Quiz.objects.filter(is_public=True, room__isnull=True).order_by('created_at')
         elif room_id:
-            # Return quizzes assigned to specific room
             return Quiz.objects.filter(room_id=room_id).order_by('created_at')
         
         return Quiz.objects.none()
@@ -73,13 +72,15 @@ class QuizViewSet(viewsets.ModelViewSet):
                     question = Question.objects.get(id=question_id, quiz=quiz)
                     option = Option.objects.get(id=option_id, question=question)
                     
+                    is_correct = option.is_correct
                     Answer.objects.create(
                         attempt=attempt,
                         question=question,
-                        selected_option=option
+                        selected_option=option,
+                        is_correct=is_correct
                     )
                     
-                    if option.is_correct:
+                    if is_correct:
                         correct_count += 1
                         
                 except (Question.DoesNotExist, Option.DoesNotExist):
@@ -94,6 +95,7 @@ class QuizViewSet(viewsets.ModelViewSet):
             # Update attempt with end time and score
             attempt.end_time = timezone.now()
             attempt.score = score
+            attempt.status = 'completed'
             attempt.save()
             
             # Return the results

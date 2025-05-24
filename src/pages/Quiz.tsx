@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ interface QuizData {
 
 const Quiz: React.FC = () => {
   const { quizId } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -39,6 +41,7 @@ const Quiz: React.FC = () => {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchQuizData = async () => {
@@ -46,6 +49,7 @@ const Quiz: React.FC = () => {
       
       try {
         const data = await quizzesAPI.getQuizDetails(quizId);
+        console.log('Quiz data:', data);
         setQuizData(data);
       } catch (error) {
         console.error('Failed to fetch quiz:', error);
@@ -111,28 +115,37 @@ const Quiz: React.FC = () => {
     const updatedAnswers = [...userAnswers, newAnswer];
     setUserAnswers(updatedAnswers);
 
-    // Move to next question or submit quiz
     if (currentQuestionIndex < quizData.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedOption(null);
     } else {
-      // Submit quiz
-      try {
-        const result = await quizzesAPI.submitQuiz(quizData.id, updatedAnswers);
-        setResults(result);
-        setShowResults(true);
-        toast({
-          title: "Quiz Completed!",
-          description: `You scored ${result.score}%`,
-        });
-      } catch (error) {
-        console.error('Failed to submit quiz:', error);
-        toast({
-          title: "Submission Failed",
-          description: "Failed to submit quiz answers",
-          variant: "destructive"
-        });
-      }
+      await submitQuiz(updatedAnswers);
+    }
+  };
+
+  const submitQuiz = async (answers: Array<{ question_id: number; option_id: number }>) => {
+    if (!quizData) return;
+    
+    setSubmitting(true);
+    try {
+      console.log('Submitting quiz with answers:', answers);
+      const result = await quizzesAPI.submitQuiz(quizData.id, answers);
+      console.log('Quiz result:', result);
+      setResults(result);
+      setShowResults(true);
+      toast({
+        title: "Quiz Completed!",
+        description: `You scored ${result.score}%`,
+      });
+    } catch (error) {
+      console.error('Failed to submit quiz:', error);
+      toast({
+        title: "Submission Failed",
+        description: "Failed to submit quiz answers",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -146,6 +159,10 @@ const Quiz: React.FC = () => {
       title: "Quiz Restarted",
       description: "Good luck on your new attempt!",
     });
+  };
+
+  const handleBackToRoom = () => {
+    navigate(-1);
   };
 
   if (loading) {
@@ -163,6 +180,9 @@ const Quiz: React.FC = () => {
       <MainLayout>
         <div className="text-center py-8">
           <p className="text-muted-foreground">Quiz not found</p>
+          <Button onClick={handleBackToRoom} className="mt-4">
+            Back to Room
+          </Button>
         </div>
       </MainLayout>
     );
@@ -179,10 +199,13 @@ const Quiz: React.FC = () => {
             <GraduationCap className="mr-2 h-8 w-8" />
             {quizData.title}
           </h1>
+          <Button variant="outline" onClick={handleBackToRoom}>
+            Back to Room
+          </Button>
         </div>
 
         {/* Quiz Resources */}
-        {quizData.quiz_resources && quizData.quiz_resources.length > 0 && (
+        {quizData.quiz_resources && quizData.quiz_resources.length > 0 && !showResults && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Quiz Resources</CardTitle>
@@ -237,8 +260,13 @@ const Quiz: React.FC = () => {
                 </RadioGroup>
               </CardContent>
               <CardFooter>
-                <Button onClick={handleNextQuestion} disabled={!selectedOption} className="ml-auto">
-                  {currentQuestionIndex === quizData.questions.length - 1 ? "Submit Quiz" : "Next Question"}
+                <Button 
+                  onClick={handleNextQuestion} 
+                  disabled={!selectedOption || submitting} 
+                  className="ml-auto"
+                >
+                  {submitting ? "Submitting..." : 
+                   currentQuestionIndex === quizData.questions.length - 1 ? "Submit Quiz" : "Next Question"}
                 </Button>
               </CardFooter>
             </Card>
@@ -263,7 +291,8 @@ const Quiz: React.FC = () => {
                   </p>
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex gap-2">
+                <Button onClick={handleBackToRoom} variant="outline">Back to Room</Button>
                 <Button onClick={handleRestartQuiz} className="ml-auto">Restart Quiz</Button>
               </CardFooter>
             </Card>
