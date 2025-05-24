@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
@@ -11,16 +10,18 @@ import { Copy, FileText, BookOpen, Download, Upload, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddResourceDialog from '@/components/rooms/AddResourceDialog';
 import AddQuizDialog from '@/components/rooms/AddQuizDialog';
+import { roomsAPI, resourcesAPI, quizzesAPI } from '@/services/api';
 
 interface Room {
   id: string;
   name: string;
   subject: string;
   description: string;
-  participants: string[];
-  createdAt: string;
-  resources: any[];
-  quizzes: any[];
+  participants_count: number;
+  resources_count: number;
+  quizzes_count: number;
+  created_at: string;
+  is_owner: boolean;
 }
 
 const RoomDetails: React.FC = () => {
@@ -28,19 +29,39 @@ const RoomDetails: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [room, setRoom] = useState<Room | null>(null);
+  const [resources, setResources] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const isTeacher = user?.role === 'teacher';
 
   useEffect(() => {
-    // Load room data
-    const teacherRooms = JSON.parse(localStorage.getItem('teacherRooms') || '[]');
-    const studentRooms = JSON.parse(localStorage.getItem('studentRooms') || '[]');
-    const allRooms = [...teacherRooms, ...studentRooms];
-    
-    const foundRoom = allRooms.find(r => r.id === roomId);
-    if (foundRoom) {
-      setRoom(foundRoom);
-    }
-  }, [roomId]);
+    const fetchRoomData = async () => {
+      if (!roomId) return;
+      
+      try {
+        const [roomData, resourcesData, quizzesData] = await Promise.all([
+          roomsAPI.getRoomDetails(roomId),
+          resourcesAPI.getResources(roomId),
+          quizzesAPI.getQuizzes(roomId)
+        ]);
+        
+        setRoom(roomData);
+        setResources(resourcesData);
+        setQuizzes(quizzesData);
+      } catch (error) {
+        console.error('Failed to fetch room data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load room data",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoomData();
+  }, [roomId, toast]);
 
   const copyRoomId = () => {
     if (room) {
@@ -53,45 +74,48 @@ const RoomDetails: React.FC = () => {
   };
 
   const handleResourceAdded = (resource: any) => {
-    if (!room) return;
-    
-    const updatedRoom = {
-      ...room,
-      resources: [...room.resources, resource]
-    };
-    
-    setRoom(updatedRoom);
-    updateRoomInStorage(updatedRoom);
+    setResources(prev => [...prev, resource]);
   };
 
   const handleQuizAdded = (quiz: any) => {
-    if (!room) return;
-    
-    const updatedRoom = {
-      ...room,
-      quizzes: [...room.quizzes, quiz]
-    };
-    
-    setRoom(updatedRoom);
-    updateRoomInStorage(updatedRoom);
+    setQuizzes(prev => [...prev, quiz]);
   };
 
-  const updateRoomInStorage = (updatedRoom: Room) => {
-    const teacherRooms = JSON.parse(localStorage.getItem('teacherRooms') || '[]');
-    const studentRooms = JSON.parse(localStorage.getItem('studentRooms') || '[]');
-    
-    const teacherIndex = teacherRooms.findIndex((r: Room) => r.id === updatedRoom.id);
-    if (teacherIndex !== -1) {
-      teacherRooms[teacherIndex] = updatedRoom;
-      localStorage.setItem('teacherRooms', JSON.stringify(teacherRooms));
-    }
-    
-    const studentIndex = studentRooms.findIndex((r: Room) => r.id === updatedRoom.id);
-    if (studentIndex !== -1) {
-      studentRooms[studentIndex] = updatedRoom;
-      localStorage.setItem('studentRooms', JSON.stringify(studentRooms));
+  const downloadQuizResource = async (resourceId: string, filename: string) => {
+    try {
+      const blob = await quizzesAPI.downloadQuizResource(resourceId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading ${filename}`,
+      });
+    } catch (error) {
+      console.error('Failed to download resource:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download the resource",
+        variant: "destructive"
+      });
     }
   };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div>Loading room details...</div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   if (!room) {
     return (
@@ -133,14 +157,14 @@ const RoomDetails: React.FC = () => {
               )}
             </div>
             
-            {room.resources.length === 0 ? (
+            {resources.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No resources available yet</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {room.resources.map((resource, index) => (
-                  <Card key={index}>
+                {resources.map((resource) => (
+                  <Card key={resource.id}>
                     <CardHeader>
                       <CardTitle className="text-base">{resource.title}</CardTitle>
                       <CardDescription>{resource.type.toUpperCase()}</CardDescription>
@@ -162,34 +186,24 @@ const RoomDetails: React.FC = () => {
           
           <TabsContent value="quizzes" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Quizzes</h2>
+              <h2 className="text-xl font-semibold">Room Quizzes</h2>
               {isTeacher && (
                 <AddQuizDialog onQuizAdded={handleQuizAdded} />
               )}
             </div>
             
-            {room.quizzes.length === 0 ? (
+            {quizzes.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No quizzes available yet</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {room.quizzes.map((quiz, index) => (
-                  <Card key={index}>
-                    <CardHeader>
-                      <CardTitle className="text-base">{quiz.title}</CardTitle>
-                      <CardDescription>{quiz.questions.length} Questions</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {quiz.description && (
-                        <p className="text-sm text-muted-foreground mb-3">{quiz.description}</p>
-                      )}
-                      <Button className="w-full" size="sm">
-                        <BookOpen className="h-4 w-4 mr-2" />
-                        Take Quiz
-                      </Button>
-                    </CardContent>
-                  </Card>
+                {quizzes.map((quiz) => (
+                  <QuizCard 
+                    key={quiz.id} 
+                    quiz={quiz} 
+                    onDownloadResource={downloadQuizResource}
+                  />
                 ))}
               </div>
             )}
@@ -197,6 +211,79 @@ const RoomDetails: React.FC = () => {
         </Tabs>
       </div>
     </MainLayout>
+  );
+};
+
+// Extract QuizCard component to keep file focused
+const QuizCard: React.FC<{ 
+  quiz: any; 
+  onDownloadResource: (resourceId: string, filename: string) => void;
+}> = ({ quiz, onDownloadResource }) => {
+  const [resources, setResources] = useState<any[]>([]);
+  const [showResources, setShowResources] = useState(false);
+
+  const fetchQuizResources = async () => {
+    try {
+      const resourcesData = await quizzesAPI.getQuizResources(quiz.id);
+      setResources(resourcesData);
+      setShowResources(true);
+    } catch (error) {
+      console.error('Failed to fetch quiz resources:', error);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{quiz.title}</CardTitle>
+        <CardDescription>{quiz.questions_count} Questions</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {quiz.description && (
+          <p className="text-sm text-muted-foreground">{quiz.description}</p>
+        )}
+        
+        <div className="flex flex-col gap-2">
+          <Button className="w-full" size="sm">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Take Quiz
+          </Button>
+          
+          {quiz.resources_count > 0 && (
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              size="sm"
+              onClick={fetchQuizResources}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              View Resources ({quiz.resources_count})
+            </Button>
+          )}
+        </div>
+        
+        {showResources && resources.length > 0 && (
+          <div className="mt-3 border-t pt-3">
+            <h4 className="text-sm font-medium mb-2">Quiz Resources:</h4>
+            {resources.map((resource) => (
+              <div key={resource.id} className="flex items-center justify-between py-1">
+                <span className="text-xs text-muted-foreground truncate">
+                  {resource.title}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDownloadResource(resource.id, resource.filename)}
+                  className="h-6 px-2"
+                >
+                  <Download className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

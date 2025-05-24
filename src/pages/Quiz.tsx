@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,88 +7,93 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { GraduationCap, CheckCircle2, XCircle } from 'lucide-react';
+import { GraduationCap, CheckCircle2, XCircle, Download, FileText } from 'lucide-react';
+import { quizzesAPI } from '@/services/api';
 
-// Sample quiz data - this would typically come from an API
-const quizData = {
-  title: "JavaScript Fundamentals",
-  description: "Test your knowledge of JavaScript basics",
-  questions: [
-    {
-      id: 1,
-      question: "Which of the following is NOT a JavaScript data type?",
-      options: [
-        "String",
-        "Boolean",
-        "Float",
-        "Object"
-      ],
-      correctAnswer: "Float"
-    },
-    {
-      id: 2,
-      question: "Which method is used to add an element to the end of an array?",
-      options: [
-        "push()",
-        "append()",
-        "addToEnd()",
-        "insertLast()"
-      ],
-      correctAnswer: "push()"
-    },
-    {
-      id: 3,
-      question: "What is the correct way to check if the variable 'x' is equal to 5 in value and type?",
-      options: [
-        "x == 5",
-        "x === 5",
-        "x = 5",
-        "x.equals(5)"
-      ],
-      correctAnswer: "x === 5"
-    },
-    {
-      id: 4,
-      question: "What does the 'DOM' stand for?",
-      options: [
-        "Document Object Model",
-        "Data Object Model",
-        "Document Oriented Module",
-        "Digital Ordinance Model"
-      ],
-      correctAnswer: "Document Object Model"
-    },
-    {
-      id: 5,
-      question: "Which of the following is not a looping structure in JavaScript?",
-      options: [
-        "for",
-        "while",
-        "do-while",
-        "foreach"
-      ],
-      correctAnswer: "foreach"
-    }
-  ]
-};
+interface QuizData {
+  id: string;
+  title: string;
+  description: string;
+  questions: Array<{
+    id: number;
+    text: string;
+    options: Array<{
+      id: number;
+      text: string;
+    }>;
+  }>;
+  quiz_resources?: Array<{
+    id: string;
+    title: string;
+    filename: string;
+  }>;
+}
 
 const Quiz: React.FC = () => {
+  const { quizId } = useParams();
   const { toast } = useToast();
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [score, setScore] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<Array<{ question_id: number; option_id: number }>>([]);
   const [showResults, setShowResults] = useState(false);
-  const [userAnswers, setUserAnswers] = useState<{ question: string; userAnswer: string; correctAnswer: string; isCorrect: boolean }[]>([]);
+  const [results, setResults] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const currentQuestion = quizData.questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / quizData.questions.length) * 100;
+  useEffect(() => {
+    const fetchQuizData = async () => {
+      if (!quizId) return;
+      
+      try {
+        const data = await quizzesAPI.getQuizDetails(quizId);
+        setQuizData(data);
+      } catch (error) {
+        console.error('Failed to fetch quiz:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load quiz",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchQuizData();
+  }, [quizId, toast]);
+
+  const downloadResource = async (resourceId: string, filename: string) => {
+    try {
+      const blob = await quizzesAPI.downloadQuizResource(resourceId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Download Started",
+        description: `Downloading ${filename}`,
+      });
+    } catch (error) {
+      console.error('Failed to download resource:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download the resource",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleOptionChange = (value: string) => {
     setSelectedOption(value);
   };
 
-  const handleNextQuestion = () => {
-    if (!selectedOption) {
+  const handleNextQuestion = async () => {
+    if (!selectedOption || !quizData) {
       toast({
         title: "Please select an answer",
         description: "You need to select an option before proceeding.",
@@ -97,57 +102,74 @@ const Quiz: React.FC = () => {
       return;
     }
 
-    const isCorrect = selectedOption === currentQuestion.correctAnswer;
+    const currentQuestion = quizData.questions[currentQuestionIndex];
+    const newAnswer = {
+      question_id: currentQuestion.id,
+      option_id: parseInt(selectedOption)
+    };
     
-    // Update score if answer is correct
-    if (isCorrect) {
-      setScore(score + 1);
-    }
-    
-    // Record user answer
-    setUserAnswers([...userAnswers, {
-      question: currentQuestion.question,
-      userAnswer: selectedOption,
-      correctAnswer: currentQuestion.correctAnswer,
-      isCorrect
-    }]);
+    const updatedAnswers = [...userAnswers, newAnswer];
+    setUserAnswers(updatedAnswers);
 
-    // Show toast for correct/incorrect answer
-    if (isCorrect) {
-      toast({
-        title: "Correct!",
-        description: "Good job, that's the right answer!",
-        variant: "default",
-      });
-    } else {
-      toast({
-        title: "Incorrect",
-        description: `The correct answer was: ${currentQuestion.correctAnswer}`,
-        variant: "destructive",
-      });
-    }
-
-    // Move to next question or show results
+    // Move to next question or submit quiz
     if (currentQuestionIndex < quizData.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedOption(null);
     } else {
-      setShowResults(true);
+      // Submit quiz
+      try {
+        const result = await quizzesAPI.submitQuiz(quizData.id, updatedAnswers);
+        setResults(result);
+        setShowResults(true);
+        toast({
+          title: "Quiz Completed!",
+          description: `You scored ${result.score}%`,
+        });
+      } catch (error) {
+        console.error('Failed to submit quiz:', error);
+        toast({
+          title: "Submission Failed",
+          description: "Failed to submit quiz answers",
+          variant: "destructive"
+        });
+      }
     }
   };
 
   const handleRestartQuiz = () => {
     setCurrentQuestionIndex(0);
     setSelectedOption(null);
-    setScore(0);
-    setShowResults(false);
     setUserAnswers([]);
+    setShowResults(false);
+    setResults(null);
     toast({
       title: "Quiz Restarted",
       description: "Good luck on your new attempt!",
-      variant: "default",
     });
   };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-64">
+          <div>Loading quiz...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!quizData) {
+    return (
+      <MainLayout>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Quiz not found</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  const currentQuestion = quizData.questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / quizData.questions.length) * 100;
 
   return (
     <MainLayout>
@@ -155,9 +177,39 @@ const Quiz: React.FC = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold flex items-center tracking-tight">
             <GraduationCap className="mr-2 h-8 w-8" />
-            Quiz Portal
+            {quizData.title}
           </h1>
         </div>
+
+        {/* Quiz Resources */}
+        {quizData.quiz_resources && quizData.quiz_resources.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Quiz Resources</CardTitle>
+              <CardDescription>Download these resources before taking the quiz</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {quizData.quiz_resources.map((resource) => (
+                  <div key={resource.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span className="text-sm">{resource.title}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => downloadResource(resource.id, resource.filename)}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 gap-6">
           {!showResults ? (
@@ -171,14 +223,14 @@ const Quiz: React.FC = () => {
               </CardHeader>
               <CardContent className="pt-6">
                 <div className="mb-4">
-                  <h3 className="text-lg font-medium">{currentQuestion.question}</h3>
+                  <h3 className="text-lg font-medium">{currentQuestion.text}</h3>
                 </div>
                 <RadioGroup onValueChange={handleOptionChange} value={selectedOption || ''}>
                   <div className="space-y-3">
-                    {currentQuestion.options.map((option, index) => (
-                      <div key={index} className="flex items-center space-x-2 border rounded-md p-3 hover:border-primary hover:bg-muted/50">
-                        <RadioGroupItem value={option} id={`option-${index}`} />
-                        <Label className="flex-1 cursor-pointer" htmlFor={`option-${index}`}>{option}</Label>
+                    {currentQuestion.options.map((option) => (
+                      <div key={option.id} className="flex items-center space-x-2 border rounded-md p-3 hover:border-primary hover:bg-muted/50">
+                        <RadioGroupItem value={option.id.toString()} id={`option-${option.id}`} />
+                        <Label className="flex-1 cursor-pointer" htmlFor={`option-${option.id}`}>{option.text}</Label>
                       </div>
                     ))}
                   </div>
@@ -186,7 +238,7 @@ const Quiz: React.FC = () => {
               </CardContent>
               <CardFooter>
                 <Button onClick={handleNextQuestion} disabled={!selectedOption} className="ml-auto">
-                  {currentQuestionIndex === quizData.questions.length - 1 ? "Finish Quiz" : "Next Question"}
+                  {currentQuestionIndex === quizData.questions.length - 1 ? "Submit Quiz" : "Next Question"}
                 </Button>
               </CardFooter>
             </Card>
@@ -195,28 +247,20 @@ const Quiz: React.FC = () => {
               <CardHeader>
                 <CardTitle>Quiz Results</CardTitle>
                 <CardDescription>
-                  You scored {score} out of {quizData.questions.length}
+                  You scored {results?.score}% ({results?.questions_correct}/{results?.questions_total})
                 </CardDescription>
-                <Progress value={(score / quizData.questions.length) * 100} className="h-2 mt-2" />
+                <Progress value={results?.score || 0} className="h-2 mt-2" />
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {userAnswers.map((answer, index) => (
-                    <div key={index} className="border rounded-md p-4">
-                      <div className="font-medium mb-2">Question {index + 1}: {answer.question}</div>
-                      <div className="flex items-start space-x-2 text-sm">
-                        {answer.isCorrect ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-red-500 mt-0.5" />
-                        )}
-                        <div>
-                          <p>Your answer: {answer.userAnswer}</p>
-                          {!answer.isCorrect && <p className="text-green-600 font-medium">Correct answer: {answer.correctAnswer}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-4">
+                  {results?.score >= 70 ? (
+                    <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
+                  ) : (
+                    <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                  )}
+                  <p className="text-lg font-medium">
+                    {results?.score >= 70 ? "Congratulations!" : "Keep studying!"}
+                  </p>
                 </div>
               </CardContent>
               <CardFooter>

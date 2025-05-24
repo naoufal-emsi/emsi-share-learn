@@ -6,9 +6,10 @@ from rooms.models import Room
 class Quiz(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_public = models.BooleanField(default=False)
     
     def __str__(self):
         return self.title
@@ -55,3 +56,14 @@ class Answer(models.Model):
     
     def __str__(self):
         return f"Answer to {self.question}"
+
+class QuizResource(models.Model):
+    quiz = models.ForeignKey(Quiz, related_name='quiz_resources', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    file = models.FileField(upload_to='quiz_resources/')
+    filename = models.CharField(max_length=255)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.title} - {self.quiz.title}"
