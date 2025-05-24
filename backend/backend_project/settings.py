@@ -16,13 +16,6 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
-    # Local apps
-    'users',
-    'core',
-    'rooms',
-    'resources',
-    'quizzes',
-    
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -35,7 +28,16 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework_simplejwt',
     
-    
+    # Local apps
+    'users',
+    'core',
+    'rooms',
+    'resources',
+    'quizzes',
+    'forums',
+    'events',
+    'notifications',
+    'analytics',
 ]
 
 MIDDLEWARE = [
