@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios'; // <-- Add this import
 
 // Define types for our context
 type User = {
@@ -27,6 +28,8 @@ const mockUsers = [
   { id: '3', name: 'Admin Demo', email: 'admin@emsi.ma', password: 'password', role: 'admin', avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=100' },
 ];
 
+const URL_API = 'http://127.0.0.1:8000/api/'; // <-- Add this variable
+
 // Create a provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -45,24 +48,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       // Backend login (JWT)
-      const response = await fetch('http://localhost:8000/api/token/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await axios.post(`${URL_API}token/`, { email, password });
 
-      if (!response.ok) throw new Error('Backend login failed');
-
-      const data = await response.json();
+      const data = response.data;
       localStorage.setItem('emsi_access', data.access);
       localStorage.setItem('emsi_refresh', data.refresh);
 
       // Fetch user info
-      const userRes = await fetch('http://localhost:8000/api/auth/me/', {
+      const userRes = await axios.get(`${URL_API}auth/me/`, {
         headers: { 'Authorization': `Bearer ${data.access}` },
       });
-      if (!userRes.ok) throw new Error('Failed to fetch user info');
-      const userData = await userRes.json();
+      const userData = userRes.data;
 
       // Map backend fields to frontend User type
       const mappedUser: User = {
@@ -76,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(mappedUser);
       setIsAuthenticated(true);
       localStorage.setItem('emsi_user', JSON.stringify(mappedUser));
-    } catch (err) {
+    } catch (err: any) {
       // Fallback to mock
       const foundUser = mockUsers.find(u => u.email === email && u.password === password);
       if (foundUser) {
@@ -94,32 +90,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (name: string, email: string, password: string, role: 'student' | 'teacher') => {
     try {
       // Backend register
-      const response = await fetch('http://localhost:8000/api/auth/register/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: email.split('@')[0],
-          email,
-          password,
-          password2: password,
-          first_name: name.split(' ')[0],
-          last_name: name.split(' ').slice(1).join(' '),
-          role,
-        }),
+      const response = await axios.post(`${URL_API}auth/register/`, {
+        username: email.split('@')[0],
+        email,
+        password,
+        password2: password,
+        first_name: name.split(' ')[0],
+        last_name: name.split(' ').slice(1).join(' '),
+        role,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      // Auto-login after registration
+      await login(email, password);
+    } catch (err: any) {
+      if (err.response && err.response.data) {
+        const errorData = err.response.data;
         throw new Error(
           errorData.password?.join(' ') ||
           errorData.detail ||
           'Registration failed'
         );
       }
-
-      // Auto-login after registration
-      await login(email, password);
-    } catch (err) {
       // Fallback to mock
       const newUser = {
         id: Math.random().toString(36).substr(2, 9),
