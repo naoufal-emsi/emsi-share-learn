@@ -6,68 +6,41 @@ import CreateRoomDialog from '@/components/rooms/CreateRoomDialog';
 import RoomCard from '@/components/rooms/RoomCard';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
-import { roomsAPI } from '@/services/api';
-import { toast } from 'sonner';
 
 interface Room {
   id: string;
   name: string;
   subject: string;
   description: string;
-  participants_count: number;
-  resources_count: number;
-  quizzes_count: number;
-  created_at: string;
-  is_owner: boolean;
+  participants: string[];
+  createdAt: string;
+  resources: any[];
+  quizzes: any[];
 }
 
 const Rooms: React.FC = () => {
   const { user } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const data = await roomsAPI.getRooms();
-        setRooms(data);
-      } catch (error) {
-        console.error('Failed to fetch rooms:', error);
-        toast.error('Failed to load rooms');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRooms();
+    // Load rooms from localStorage
+    const savedRooms = localStorage.getItem('teacherRooms');
+    if (savedRooms) {
+      setRooms(JSON.parse(savedRooms));
+    }
   }, []);
 
-  const handleRoomCreated = async (roomData: any) => {
-    try {
-      const newRoom = await roomsAPI.createRoom(roomData);
-      setRooms(prev => [...prev, newRoom]);
-      toast.success('Room created successfully!');
-    } catch (error) {
-      console.error('Failed to create room:', error);
-      toast.error('Failed to create room');
-    }
+  const handleRoomCreated = (newRoom: Room) => {
+    const updatedRooms = [...rooms, newRoom];
+    setRooms(updatedRooms);
+    localStorage.setItem('teacherRooms', JSON.stringify(updatedRooms));
   };
 
   const filteredRooms = rooms.filter(room =>
     room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     room.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div>Loading rooms...</div>
-        </div>
-      </MainLayout>
-    );
-  }
 
   return (
     <MainLayout>

@@ -9,7 +9,7 @@ import { PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface CreateRoomDialogProps {
-  onRoomCreated: (roomData: any) => void;
+  onRoomCreated: (room: any) => void;
 }
 
 const CreateRoomDialog: React.FC<CreateRoomDialogProps> = ({ onRoomCreated }) => {
@@ -17,10 +17,14 @@ const CreateRoomDialog: React.FC<CreateRoomDialogProps> = ({ onRoomCreated }) =>
   const [roomName, setRoomName] = useState('');
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [participants, setParticipants] = useState('');
   const { toast } = useToast();
 
-  const handleCreateRoom = async () => {
+  const generateRoomId = () => {
+    return Math.random().toString(36).substr(2, 8).toUpperCase();
+  };
+
+  const handleCreateRoom = () => {
     if (!roomName || !subject) {
       toast({
         title: "Error",
@@ -30,25 +34,30 @@ const CreateRoomDialog: React.FC<CreateRoomDialogProps> = ({ onRoomCreated }) =>
       return;
     }
 
-    setIsLoading(true);
-    
-    try {
-      await onRoomCreated({
-        name: roomName,
-        subject: subject,
-        description: description,
-      });
+    const newRoom = {
+      id: generateRoomId(),
+      name: roomName,
+      subject: subject,
+      description: description,
+      participants: participants.split(',').map(p => p.trim()).filter(p => p),
+      createdAt: new Date().toISOString(),
+      resources: [],
+      quizzes: []
+    };
 
-      // Reset form
-      setRoomName('');
-      setSubject('');
-      setDescription('');
-      setOpen(false);
-    } catch (error) {
-      // Error handling is done in parent component
-    } finally {
-      setIsLoading(false);
-    }
+    onRoomCreated(newRoom);
+    
+    toast({
+      title: "Room Created!",
+      description: `Room ID: ${newRoom.id} - Share this with your students`,
+    });
+
+    // Reset form
+    setRoomName('');
+    setSubject('');
+    setDescription('');
+    setParticipants('');
+    setOpen(false);
   };
 
   return (
@@ -94,15 +103,18 @@ const CreateRoomDialog: React.FC<CreateRoomDialogProps> = ({ onRoomCreated }) =>
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
+          <div className="grid gap-2">
+            <Label htmlFor="participants">Participants (comma-separated emails)</Label>
+            <Textarea
+              id="participants"
+              placeholder="student1@email.com, student2@email.com"
+              value={participants}
+              onChange={(e) => setParticipants(e.target.value)}
+            />
+          </div>
         </div>
         <DialogFooter>
-          <Button 
-            type="submit" 
-            onClick={handleCreateRoom}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Creating...' : 'Create Room'}
-          </Button>
+          <Button type="submit" onClick={handleCreateRoom}>Create Room</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

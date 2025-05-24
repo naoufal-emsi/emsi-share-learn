@@ -12,11 +12,10 @@ interface Room {
   name: string;
   subject: string;
   description: string;
-  participants_count: number;
-  resources_count: number;
-  quizzes_count: number;
-  created_at: string;
-  is_owner: boolean;
+  participants: string[];
+  createdAt: string;
+  resources: any[];
+  quizzes: any[];
 }
 
 interface RoomCardProps {
@@ -54,21 +53,21 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
         <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
           <div className="flex items-center">
             <Users className="h-4 w-4 mr-1" />
-            <span>{room.participants_count} participants</span>
+            <span>{room.participants.length} participants</span>
           </div>
           <div className="flex items-center">
             <Clock className="h-4 w-4 mr-1" />
-            <span>{new Date(room.created_at).toLocaleDateString()}</span>
+            <span>{new Date(room.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
         <div className="flex space-x-4 text-sm">
           <div className="flex items-center">
             <FileText className="h-4 w-4 mr-1 text-primary" />
-            <span>{room.resources_count} Resources</span>
+            <span>{room.resources.length} Resources</span>
           </div>
           <div className="flex items-center">
             <BookOpen className="h-4 w-4 mr-1 text-accent" />
-            <span>{room.quizzes_count} Quizzes</span>
+            <span>{room.quizzes.length} Quizzes</span>
           </div>
         </div>
       </CardContent>

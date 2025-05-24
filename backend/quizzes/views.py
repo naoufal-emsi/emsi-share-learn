@@ -3,11 +3,10 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
-from django.http import FileResponse, Http404
-from .models import Quiz, Question, Option, QuizAttempt, Answer, QuizResource
+from .models import Quiz, Question, Option, QuizAttempt, Answer
 from .serializers import (
     QuizSerializer, QuizDetailSerializer, QuestionSerializer, 
-    QuizSubmitSerializer, QuizResultSerializer, QuizResourceSerializer
+    QuizSubmitSerializer, QuizResultSerializer
 )
 from rooms.permissions import IsOwnerOrReadOnly
 
@@ -17,15 +16,8 @@ class QuizViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         room_id = self.request.query_params.get('room', None)
-        is_public = self.request.query_params.get('public', None)
-        
-        if is_public == 'true':
-            # Return only public quizzes (not assigned to any room)
-            return Quiz.objects.filter(is_public=True, room__isnull=True)
-        elif room_id:
-            # Return quizzes assigned to specific room
+        if room_id:
             return Quiz.objects.filter(room_id=room_id)
-        
         return Quiz.objects.none()
     
     def get_serializer_class(self):
@@ -101,25 +93,6 @@ class QuizViewSet(viewsets.ModelViewSet):
             return Response(result_serializer.data, status=status.HTTP_200_OK)
             
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=True, methods=['get'], url_path='resources')
-    def get_resources(self, request, pk=None):
-        quiz = self.get_object()
-        resources = QuizResource.objects.filter(quiz=quiz)
-        serializer = QuizResourceSerializer(resources, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'], url_path='resource/(?P<resource_id>[^/.]+)/download')
-    def download_resource(self, request, resource_id=None):
-        try:
-            resource = QuizResource.objects.get(id=resource_id)
-            if resource.file:
-                response = FileResponse(resource.file.open(), as_attachment=True, filename=resource.filename)
-                return response
-            else:
-                raise Http404("File not found")
-        except QuizResource.DoesNotExist:
-            raise Http404("Resource not found")
 
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer

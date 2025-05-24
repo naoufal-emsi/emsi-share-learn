@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import Quiz, Question, Option, QuizAttempt, Answer, QuizResource
+from .models import Quiz, Question, Option, QuizAttempt, Answer
 
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,32 +37,16 @@ class QuestionSerializer(serializers.ModelSerializer):
         
         return instance
 
-class QuizResourceSerializer(serializers.ModelSerializer):
-    file_size = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = QuizResource
-        fields = ['id', 'title', 'file', 'filename', 'uploaded_by', 'uploaded_at', 'file_size']
-        read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'file_size']
-    
-    def get_file_size(self, obj):
-        return obj.file.size if obj.file else None
-
 class QuizSerializer(serializers.ModelSerializer):
     questions_count = serializers.SerializerMethodField()
-    resources_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Quiz
-        fields = ['id', 'title', 'description', 'room', 'created_by', 'created_at', 
-                 'is_public', 'questions_count', 'resources_count']
+        fields = ['id', 'title', 'description', 'room', 'created_by', 'created_at', 'questions_count']
         read_only_fields = ['id', 'created_by', 'created_at']
     
     def get_questions_count(self, obj):
         return obj.questions.count()
-    
-    def get_resources_count(self, obj):
-        return obj.quiz_resources.count()
     
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
@@ -70,10 +54,9 @@ class QuizSerializer(serializers.ModelSerializer):
 
 class QuizDetailSerializer(QuizSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
-    quiz_resources = QuizResourceSerializer(many=True, read_only=True)
     
     class Meta(QuizSerializer.Meta):
-        fields = QuizSerializer.Meta.fields + ['questions', 'quiz_resources']
+        fields = QuizSerializer.Meta.fields + ['questions']
 
 class QuizSubmitAnswerSerializer(serializers.Serializer):
     question_id = serializers.IntegerField()

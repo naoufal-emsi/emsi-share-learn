@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -16,33 +15,17 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { quizzesAPI } from '@/services/api';
 
 const Sidebar: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
-  const [publicQuizzes, setPublicQuizzes] = useState<any[]>([]);
-  
-  // Fetch public quizzes
-  useEffect(() => {
-    const fetchPublicQuizzes = async () => {
-      try {
-        const quizzes = await quizzesAPI.getPublicQuizzes();
-        setPublicQuizzes(quizzes);
-      } catch (error) {
-        console.error('Failed to fetch public quizzes:', error);
-      }
-    };
-    
-    if (user) {
-      fetchPublicQuizzes();
-    }
-  }, [user]);
   
   // Define navigation items based on user role
   const navigationItems = [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Resources', href: '/resources', icon: FileText },
+    { name: 'Quiz', href: '/quiz', icon: GraduationCap },
+    { name: 'Forum', href: '/forum', icon: MessageSquare },
     ...(user?.role === 'teacher' ? [
       { name: 'My Rooms', href: '/rooms', icon: DoorOpen },
     ] : []),
@@ -52,7 +35,6 @@ const Sidebar: React.FC = () => {
     ...(user?.role === 'teacher' || user?.role === 'admin' ? [
       { name: 'Analytics', href: '/analytics', icon: BarChart },
     ] : []),
-    { name: 'Forum', href: '/forum', icon: MessageSquare },
     { name: 'Events', href: '/events', icon: Calendar },
     ...(user?.role === 'admin' ? [
       { name: 'Users', href: '/users', icon: Users },
@@ -94,25 +76,6 @@ const Sidebar: React.FC = () => {
             </Link>
           );
         })}
-        
-        {/* Public Quizzes Section */}
-        {publicQuizzes.length > 0 && (
-          <div className="pt-4">
-            <h3 className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Public Quizzes
-            </h3>
-            {publicQuizzes.map((quiz) => (
-              <Link
-                key={quiz.id}
-                to={`/quiz/${quiz.id}`}
-                className="flex items-center px-4 py-2 text-sm text-neutral-dark hover:bg-primary/5 hover:text-primary rounded-lg transition-all duration-200"
-              >
-                <GraduationCap className="mr-3 h-4 w-4 text-neutral" />
-                <span className="truncate">{quiz.title}</span>
-              </Link>
-            ))}
-          </div>
-        )}
       </nav>
       
       <div className="p-4 mt-auto">
