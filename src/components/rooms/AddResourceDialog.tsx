@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,19 +5,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { resourcesAPI } from '@/services/api';
 
 interface AddResourceDialogProps {
   onResourceAdded: (resource: any) => void;
+  roomId: string;
 }
 
-const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded }) => {
+const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, roomId }) => {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,7 +29,14 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded }
     }
   };
 
-  const handleAddResource = () => {
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setType('');
+    setFile(null);
+  };
+
+  const handleAddResource = async () => {
     if (!title || !type || !file) {
       toast({
         title: "Error",
@@ -37,29 +46,36 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded }
       return;
     }
 
-    const newResource = {
-      id: Date.now().toString(),
-      title,
-      description,
-      type,
-      fileName: file.name,
-      fileSize: file.size,
-      uploadedAt: new Date().toISOString()
-    };
-
-    onResourceAdded(newResource);
+    setIsUploading(true);
     
-    toast({
-      title: "Resource Added!",
-      description: "Resource has been successfully added to the room",
-    });
+    try {
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('description', description || '');
+      formData.append('type', type);
+      formData.append('file', file);
+      formData.append('room', roomId);
 
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setType('');
-    setFile(null);
-    setOpen(false);
+      const newResource = await resourcesAPI.uploadResource(formData);
+      
+      onResourceAdded(newResource);
+      toast({
+        title: "Success!",
+        description: "Resource has been successfully uploaded",
+      });
+
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      console.error('Resource upload failed:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload resource. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -74,7 +90,7 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded }
         <DialogHeader>
           <DialogTitle>Add New Resource</DialogTitle>
           <DialogDescription>
-            Upload a new resource for students to access.
+            Upload a new resource for students to access. All fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -85,20 +101,24 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded }
               placeholder="Resource title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={isUploading}
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="type">Type *</Label>
-            <Select value={type} onValueChange={setType}>
+            <Select value={type} onValueChange={setType} disabled={isUploading}>
               <SelectTrigger>
                 <SelectValue placeholder="Select resource type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="pdf">PDF Document</SelectItem>
                 <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="zip">ZIP Archive</SelectItem>
+                <SelectItem value="audio">Audio</SelectItem>
+                <SelectItem value="image">Image</SelectItem>
                 <SelectItem value="doc">Word Document</SelectItem>
                 <SelectItem value="ppt">PowerPoint</SelectItem>
+                <SelectItem value="excel">Excel</SelectItem>
+                <SelectItem value="zip">ZIP Archive</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
@@ -110,6 +130,7 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded }
               placeholder="Resource description..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={isUploading}
             />
           </div>
           <div className="grid gap-2">
@@ -118,17 +139,42 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded }
               id="file"
               type="file"
               onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.ppt,.pptx,.zip,.mp4,.avi,.mov"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.mp3,.avi,.mov,.jpg,.jpeg,.png,.gif"
+              disabled={isUploading}
             />
             {file && (
-              <p className="text-sm text-muted-foreground">
-                Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-              </p>
+              <div className="text-sm text-muted-foreground">
+                <p>Selected file: {file.name}</p>
+                <p>Size: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+              </div>
             )}
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={handleAddResource}>Add Resource</Button>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              resetForm();
+              setOpen(false);
+            }}
+            disabled={isUploading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            onClick={handleAddResource}
+            disabled={isUploading || !title || !type || !file}
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              'Upload Resource'
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

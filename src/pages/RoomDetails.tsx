@@ -1,13 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, FileText, BookOpen, Download, Trash2 } from 'lucide-react';
+import { Copy, FileText, BookOpen, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddResourceDialog from '@/components/rooms/AddResourceDialog';
 import AddQuizDialog from '@/components/rooms/AddQuizDialog';
@@ -27,7 +26,6 @@ interface Room {
 
 const RoomDetails: React.FC = () => {
   const { roomId } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [room, setRoom] = useState<Room | null>(null);
@@ -35,8 +33,6 @@ const RoomDetails: React.FC = () => {
   const [quizzes, setQuizzes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const isTeacher = user?.role === 'teacher';
-
-  
 
   useEffect(() => {
     const fetchRoomData = async () => {
@@ -49,8 +45,29 @@ const RoomDetails: React.FC = () => {
           quizzesAPI.getQuizzes(roomId)
         ]);
         setRoom(roomData);
-        setResources(Array.isArray(resourcesData) ? resourcesData : resourcesData?.results || []);
-        setQuizzes(Array.isArray(quizzesData) ? quizzesData : quizzesData?.results || []);
+
+        // Defensive: handle array or paginated object
+        let resourceArr = [];
+        if (Array.isArray(resourcesData)) {
+          resourceArr = resourcesData;
+        } else if (resourcesData && Array.isArray(resourcesData.results)) {
+          resourceArr = resourcesData.results;
+        } else {
+          resourceArr = [];
+        }
+        setResources(resourceArr);
+
+        // Defensive for quizzes too, if needed
+        let quizArr = [];
+        if (Array.isArray(quizzesData)) {
+          quizArr = quizzesData;
+        } else if (quizzesData && Array.isArray(quizzesData.results)) {
+          quizArr = quizzesData.results;
+        } else {
+          quizArr = [];
+        }
+        setQuizzes(quizArr);
+
       } catch (error) {
         console.error('Failed to fetch room data:', error);
         toast({
@@ -65,27 +82,6 @@ const RoomDetails: React.FC = () => {
 
     fetchRoomData();
   }, [roomId, toast]);
-
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const handleDeleteRoom = async () => {
-    if (!roomId || !room) return;
-    try {
-      await roomsAPI.deleteRoom(roomId);
-      toast({
-        title: "Success",
-        description: "Room deleted successfully",
-      });
-      navigate('/rooms');
-    } catch (error) {
-      console.error('Failed to delete room:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete room",
-        variant: "destructive"
-      });
-    }
-  };
 
   const copyRoomId = () => {
     if (room) {
@@ -105,13 +101,13 @@ const RoomDetails: React.FC = () => {
     setQuizzes(prev => [...prev, quiz]);
   };
 
-  const downloadResource = async (resourceId: string, filename: string) => {
+  const downloadQuizResource = async (resourceId: string, filename: string) => {
     try {
-      const blob = await resourcesAPI.downloadResource(resourceId);
+      const blob = await quizzesAPI.downloadQuizResource(resourceId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename || 'download';
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -129,10 +125,6 @@ const RoomDetails: React.FC = () => {
         variant: "destructive"
       });
     }
-  };
-
-  const handleTakeQuiz = (quizId: string) => {
-    navigate(`/quiz/${quizId}`);
   };
 
   if (loading) {
@@ -169,31 +161,6 @@ const RoomDetails: React.FC = () => {
               </Button>
             </div>
           </div>
-                {room.is_owner && (
-          <>
-            <Button 
-              variant="destructive" 
-              size="sm"
-              onClick={() => setShowDeleteModal(true)}
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>Delete Room</span>
-            </Button>
-            {showDeleteModal && (
-              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-                <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
-                  <h2 className="text-lg font-bold mb-2">Delete Room</h2>
-                  <p className="mb-4">Are you sure you want to delete this room? This action cannot be undone.</p>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-                    <Button variant="destructive" onClick={() => { setShowDeleteModal(false); handleDeleteRoom(); }}>Delete</Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
         </div>
 
         <Tabs defaultValue="resources" className="w-full">
@@ -206,12 +173,20 @@ const RoomDetails: React.FC = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Resources</h2>
               {isTeacher && (
-                <AddResourceDialog onResourceAdded={handleResourceAdded} />
+                <AddResourceDialog 
+                roomId={roomId} 
+                onResourceAdded={handleResourceAdded} 
+              />
               )}
             </div>
-            {resources.length === 0 ? (
+            {/* Defensive check for resources array */}
+            {Array.isArray(resources) && resources.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No resources available yet</p>
+              </div>
+            ) : !Array.isArray(resources) ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Resource data is unavailable or invalid.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -219,17 +194,13 @@ const RoomDetails: React.FC = () => {
                   <Card key={resource.id}>
                     <CardHeader>
                       <CardTitle className="text-base">{resource.title}</CardTitle>
-                      <CardDescription>{resource.type?.toUpperCase() || 'FILE'}</CardDescription>
+                      <CardDescription>{resource.type?.toUpperCase?.() || ''}</CardDescription>
                     </CardHeader>
                     <CardContent>
                       {resource.description && (
                         <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
                       )}
-                      <Button 
-                        className="w-full" 
-                        size="sm"
-                        onClick={() => downloadResource(resource.id, resource.file_name || resource.title)}
-                      >
+                      <Button className="w-full" size="sm">
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
@@ -257,7 +228,7 @@ const RoomDetails: React.FC = () => {
                   <QuizCard 
                     key={quiz.id} 
                     quiz={quiz} 
-                    onTakeQuiz={handleTakeQuiz}
+                    onDownloadResource={downloadQuizResource}
                   />
                 ))}
               </div>
@@ -269,13 +240,13 @@ const RoomDetails: React.FC = () => {
   );
 };
 
+// Extract QuizCard component to keep file focused
 const QuizCard: React.FC<{ 
   quiz: any; 
-  onTakeQuiz: (quizId: string) => void;
-}> = ({ quiz, onTakeQuiz }) => {
+  onDownloadResource: (resourceId: string, filename: string) => void;
+}> = ({ quiz, onDownloadResource }) => {
   const [resources, setResources] = useState<any[]>([]);
   const [showResources, setShowResources] = useState(false);
-  const { toast } = useToast();
 
   const fetchQuizResources = async () => {
     try {
@@ -284,38 +255,6 @@ const QuizCard: React.FC<{
       setShowResources(true);
     } catch (error) {
       console.error('Failed to fetch quiz resources:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load quiz resources",
-        variant: "destructive"
-      });
-    }
-  };
-  
-
-  const downloadQuizResource = async (resourceId: string, filename: string) => {
-    try {
-      const blob = await quizzesAPI.downloadQuizResource(resourceId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Download Started",
-        description: `Downloading ${filename}`,
-      });
-    } catch (error) {
-      console.error('Failed to download resource:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download the resource",
-        variant: "destructive"
-      });
     }
   };
 
@@ -331,11 +270,7 @@ const QuizCard: React.FC<{
         )}
         
         <div className="flex flex-col gap-2">
-          <Button 
-            className="w-full" 
-            size="sm"
-            onClick={() => onTakeQuiz(quiz.id)}
-          >
+          <Button className="w-full" size="sm">
             <BookOpen className="h-4 w-4 mr-2" />
             Take Quiz
           </Button>
@@ -364,7 +299,7 @@ const QuizCard: React.FC<{
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => downloadQuizResource(resource.id, resource.filename)}
+                  onClick={() => onDownloadResource(resource.id, resource.filename)}
                   className="h-6 px-2"
                 >
                   <Download className="h-3 w-3" />
