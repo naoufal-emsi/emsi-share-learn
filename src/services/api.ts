@@ -1,4 +1,3 @@
-
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 // API utility functions
@@ -136,18 +135,18 @@ export const resourcesAPI = {
     return response.json();
   },
   
-  downloadResource: async (resourceId: string) => {
+  downloadResource: async (roomCode: string, resourceId: string) => {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/resources/${resourceId}/download/`, {
+    const response = await fetch(`${API_BASE_URL}/resources/${roomCode}/download/?resource_id=${resourceId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to download resource');
     }
-    
+
     return response.blob();
   },
 };

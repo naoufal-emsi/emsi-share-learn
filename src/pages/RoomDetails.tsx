@@ -101,9 +101,11 @@ const RoomDetails: React.FC = () => {
     setQuizzes(prev => [...prev, quiz]);
   };
 
-  const downloadQuizResource = async (resourceId: string, filename: string) => {
+  const downloadResource = async (resourceId: string, filename: string) => {
     try {
-      const blob = await quizzesAPI.downloadQuizResource(resourceId);
+      // Use roomId from the URL params (which is the room code)
+      if (!roomId) throw new Error('Room ID is missing');
+      const blob = await resourcesAPI.downloadResource(roomId, resourceId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -112,7 +114,7 @@ const RoomDetails: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Download Started",
         description: `Downloading ${filename}`,
@@ -200,7 +202,11 @@ const RoomDetails: React.FC = () => {
                       {resource.description && (
                         <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
                       )}
-                      <Button className="w-full" size="sm">
+                      <Button
+                        className="w-full"
+                        size="sm"
+                        onClick={() => downloadResource(resource.id, resource.file_name || resource.title)}
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>

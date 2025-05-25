@@ -37,7 +37,8 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, 
   };
 
   const handleAddResource = async () => {
-    if (!title || !type || !file) {
+    // Validate required fields
+    if (!title.trim() || !type.trim() || !file) {
       toast({
         title: "Error",
         description: "Please fill in all required fields and select a file",
@@ -47,17 +48,22 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, 
     }
 
     setIsUploading(true);
-    
+
     try {
       const formData = new FormData();
-      formData.append('title', title);
+      formData.append('title', title.trim());
       formData.append('description', description || '');
       formData.append('type', type);
       formData.append('file', file);
       formData.append('room', roomId);
 
+      // Send POST request to backend
       const newResource = await resourcesAPI.uploadResource(formData);
-      
+
+      if (!newResource || !newResource.id) {
+        throw new Error('Invalid response from server');
+      }
+
       onResourceAdded(newResource);
       toast({
         title: "Success!",
@@ -66,11 +72,11 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, 
 
       resetForm();
       setOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Resource upload failed:', error);
       toast({
         title: "Upload Failed",
-        description: "Failed to upload resource. Please try again.",
+        description: error?.message || "Failed to upload resource. Please try again.",
         variant: "destructive"
       });
     } finally {
