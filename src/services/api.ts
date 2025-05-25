@@ -26,8 +26,14 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   if (!response.ok) {
     throw new Error(`API Error: ${response.status}`);
   }
-  
-  return response.json();
+
+  // Handle empty response (e.g., DELETE or 204 No Content)
+  const contentType = response.headers.get('content-type');
+  if (response.status === 204 || !contentType || !contentType.includes('application/json')) {
+    return null;
+  }
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 };
 
 // Auth API
@@ -98,6 +104,12 @@ export const roomsAPI = {
   
   getRoomDetails: async (roomId: string) => {
     return apiRequest(`/rooms/${roomId}/`);
+  },
+  
+  deleteRoom: async (roomId: string) => {
+    return apiRequest(`/rooms/${roomId}/`, {
+      method: 'DELETE',
+    });
   },
 };
 

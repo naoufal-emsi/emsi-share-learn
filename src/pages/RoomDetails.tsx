@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, FileText, BookOpen, Download } from 'lucide-react';
+import { Copy, FileText, BookOpen, Download, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddResourceDialog from '@/components/rooms/AddResourceDialog';
 import AddQuizDialog from '@/components/rooms/AddQuizDialog';
@@ -36,6 +36,8 @@ const RoomDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const isTeacher = user?.role === 'teacher';
 
+  
+
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId) return;
@@ -63,6 +65,27 @@ const RoomDetails: React.FC = () => {
 
     fetchRoomData();
   }, [roomId, toast]);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleDeleteRoom = async () => {
+    if (!roomId || !room) return;
+    try {
+      await roomsAPI.deleteRoom(roomId);
+      toast({
+        title: "Success",
+        description: "Room deleted successfully",
+      });
+      navigate('/rooms');
+    } catch (error) {
+      console.error('Failed to delete room:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete room",
+        variant: "destructive"
+      });
+    }
+  };
 
   const copyRoomId = () => {
     if (room) {
@@ -146,6 +169,31 @@ const RoomDetails: React.FC = () => {
               </Button>
             </div>
           </div>
+                {room.is_owner && (
+          <>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={() => setShowDeleteModal(true)}
+              className="flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Delete Room</span>
+            </Button>
+            {showDeleteModal && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+                  <h2 className="text-lg font-bold mb-2">Delete Room</h2>
+                  <p className="mb-4">Are you sure you want to delete this room? This action cannot be undone.</p>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => { setShowDeleteModal(false); handleDeleteRoom(); }}>Delete</Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
         </div>
 
         <Tabs defaultValue="resources" className="w-full">
@@ -243,6 +291,7 @@ const QuizCard: React.FC<{
       });
     }
   };
+  
 
   const downloadQuizResource = async (resourceId: string, filename: string) => {
     try {
