@@ -1,7 +1,14 @@
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 // API utility functions
-const getAuthToken = () => localStorage.getItem('emsi_access');
+// Use cookies for JWT tokens
+const getCookie = (name: string) => {
+  return document.cookie.split('; ').reduce((r, v) => {
+    const parts = v.split('=');
+    return parts[0] === name ? decodeURIComponent(parts[1]) : r
+  }, '');
+};
+const getAuthToken = () => getCookie('emsi_access');
 
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = getAuthToken();
