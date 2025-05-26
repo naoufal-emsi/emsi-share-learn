@@ -1,4 +1,3 @@
-
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -28,6 +27,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework.authtoken',
+    'rest_framework_simplejwt.token_blacklist',
     
     # Local apps
     'users',
@@ -140,6 +140,14 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
+    # --- Cookie settings for JWT ---
+    'AUTH_COOKIE': 'emsi_access',
+    'AUTH_COOKIE_REFRESH': 'emsi_refresh',
+    'AUTH_COOKIE_SECURE': False,  # Set to True in production (HTTPS)
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_PATH': '/',
+    'AUTH_COOKIE_SAMESITE': 'Lax',
+    'AUTH_COOKIE_DOMAIN': None,  # Set your domain in production
 }
 
 # CORS settings

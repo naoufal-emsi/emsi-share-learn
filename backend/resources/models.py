@@ -1,10 +1,10 @@
-
 from django.db import models
 from django.conf import settings
 from rooms.models import Room
 
 def resource_upload_path(instance, filename):
-    return f'resources/room_{instance.room.id}/{filename}'
+    # Use the Room's primary key (which is the public room code)
+    return f'resources/room_{instance.room.pk}/{filename}'
 
 class Resource(models.Model):
     RESOURCE_TYPES = (

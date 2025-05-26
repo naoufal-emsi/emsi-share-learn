@@ -1,8 +1,14 @@
-
 const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 // API utility functions
-const getAuthToken = () => localStorage.getItem('emsi_access');
+// Use cookies for JWT tokens
+const getCookie = (name: string) => {
+  return document.cookie.split('; ').reduce((r, v) => {
+    const parts = v.split('=');
+    return parts[0] === name ? decodeURIComponent(parts[1]) : r
+  }, '');
+};
+const getAuthToken = () => getCookie('emsi_access');
 
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = getAuthToken();
@@ -136,18 +142,18 @@ export const resourcesAPI = {
     return response.json();
   },
   
-  downloadResource: async (resourceId: string) => {
+  downloadResource: async (roomCode: string, resourceId: string) => {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/resources/${resourceId}/download/`, {
+    const response = await fetch(`${API_BASE_URL}/resources/${roomCode}/download/?resource_id=${resourceId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to download resource');
     }
-    
+
     return response.blob();
   },
 };

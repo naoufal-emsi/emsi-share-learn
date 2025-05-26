@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, FileText, BookOpen, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddResourceDialog from '@/components/rooms/AddResourceDialog';
 import AddQuizDialog from '@/components/rooms/AddQuizDialog';
 import { roomsAPI, resourcesAPI, quizzesAPI } from '@/services/api';
-import { toast } from 'sonner';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { Copy, FileText, BookOpen, Download, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 type Option = {
   id: number;
@@ -55,7 +55,9 @@ const RoomDetails: React.FC = () => {
   const [resources, setResources] = useState<any[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false); // Add this line
   const isTeacher = user?.role === 'teacher';
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchRoomData = async () => {
@@ -114,6 +116,27 @@ const RoomDetails: React.FC = () => {
     }
   };
 
+
+  const handleDeleteRoom = async () => {
+    if (!roomId || !room) return;
+  
+    try {
+      await roomsAPI.deleteRoom(roomId);
+      toast({
+        title: "Success",
+        description: "Room deleted successfully",
+      });
+      navigate('/rooms'); // Alternative navigation method
+    } catch (error) {
+      console.error('Failed to delete room:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete room",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleResourceAdded = (resource: any) => {
     setResources(prev => [...prev, resource]);
   };
@@ -122,9 +145,11 @@ const RoomDetails: React.FC = () => {
     setQuizzes(prev => [...prev, quiz]);
   };
 
-  const downloadQuizResource = async (resourceId: string, filename: string) => {
+  const downloadResource = async (resourceId: string, filename: string) => {
     try {
-      const blob = await quizzesAPI.downloadQuizResource(resourceId);
+      // Use roomId from the URL params (which is the room code)
+      if (!roomId) throw new Error('Room ID is missing');
+      const blob = await resourcesAPI.downloadResource(roomId, resourceId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -133,7 +158,7 @@ const RoomDetails: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Download Started",
         description: `Downloading ${filename}`,
@@ -182,6 +207,31 @@ const RoomDetails: React.FC = () => {
               </Button>
             </div>
           </div>
+          {room.is_owner && (
+            <>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Delete Room</span>
+              </Button>
+              <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Room</DialogTitle>
+                  </DialogHeader>
+                  <p>Are you sure you want to delete this room? This action cannot be undone.</p>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => { setShowDeleteDialog(false); handleDeleteRoom(); }}>Delete</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
         </div>
 
         <Tabs defaultValue="resources" className="w-full">
@@ -216,10 +266,12 @@ const RoomDetails: React.FC = () => {
                       {resource.description && (
                         <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
                       )}
-                      <Button 
-                        className="w-full" 
+
+                      <Button
+                        className="w-full"
                         size="sm"
-                        onClick={() => downloadQuizResource(resource.id, resource.filename)}
+                        onClick={() => downloadResource(resource.id, resource.file_name || resource.title)}
+
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Download
@@ -251,7 +303,7 @@ const RoomDetails: React.FC = () => {
                   <QuizCard 
                     key={quiz.id} 
                     quiz={quiz} 
-                    onDownloadResource={downloadQuizResource}
+                    onDownloadResource={downloadResource}
                     roomId={roomId} // <-- pass roomId here
                   />
                 ))}
