@@ -31,6 +31,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   register: (name: string, email: string, password: string, role: 'student' | 'teacher') => Promise<void>;
+  updateProfile: (profileData: Partial<{ first_name: string; last_name: string; email: string; avatar?: string }>) => Promise<void>;
 };
 
 // Create the context
@@ -122,11 +123,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     removeCookie('emsi_refresh');
   };
 
+  // Update profile function
+  const updateProfile = async (profileData: Partial<{ first_name: string; last_name: string; email: string; avatar?: string }>) => {
+    try {
+      // Call your API to update the profile
+      const updatedUserData = await authAPI.updateProfile(profileData);
+      
+      // Update the user state with the new data
+      const mappedUser: User = {
+        id: updatedUserData.id.toString(),
+        name: `${updatedUserData.first_name || ''} ${updatedUserData.last_name || ''}`.trim() || updatedUserData.username,
+        email: updatedUserData.email,
+        role: updatedUserData.role,
+        avatar: updatedUserData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(updatedUserData.first_name || updatedUserData.email)}&background=random`,
+      };
+      setUser(mappedUser);
+
+      // Optionally, you might want to refetch the user or merge data carefully
+      // For example, if the API only returns a success message:
+      // const currentUser = await authAPI.getMe(); // Refetch user
+      // setUser(currentUser); // Update state
+
+    } catch (error) {
+      console.error('Profile update failed:', error);
+      throw new Error('Profile update failed');
+    }
+  };
+
   // Only render children after auth check to avoid flicker
   if (!checked) return null;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, register }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, register, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

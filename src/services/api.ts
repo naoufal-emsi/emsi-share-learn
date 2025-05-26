@@ -76,6 +76,12 @@ export const authAPI = {
   getMe: async () => {
     return apiRequest('/auth/me/');
   },
+  updateProfile: async (profileData: Partial<{ first_name: string; last_name: string; email: string; avatar?: string }>) => {
+    return apiRequest('/auth/me/', {
+      method: 'PATCH',
+      body: JSON.stringify(profileData),
+    });
+  },
 };
 
 // Rooms API
