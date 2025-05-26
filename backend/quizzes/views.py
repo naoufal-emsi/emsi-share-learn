@@ -17,15 +17,18 @@ class QuizViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        room_id = self.request.query_params.get('room', None)
-        is_public = self.request.query_params.get('public', None)
-        
-        if is_public == 'true':
-            return Quiz.objects.filter(is_public=True, room__isnull=True).order_by('created_at')
-        elif room_id:
-            return Quiz.objects.filter(room_id=room_id).order_by('created_at')
-        
-        return Quiz.objects.none()
+        if self.action == 'list':
+            room_id = self.request.query_params.get('room', None)
+            is_public = self.request.query_params.get('public', None)
+            
+            if is_public == 'true':
+                return Quiz.objects.filter(is_public=True, room__isnull=True).order_by('created_at')
+            elif room_id:
+                return Quiz.objects.filter(room_id=room_id).order_by('created_at')
+            else:
+                return Quiz.objects.none()
+        # For other actions (retrieve, update, etc.), return all quizzes
+        return Quiz.objects.all()
     
     def get_serializer_class(self):
         if self.action == 'retrieve':

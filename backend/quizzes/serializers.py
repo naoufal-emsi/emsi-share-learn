@@ -38,13 +38,14 @@ class QuizResourceSerializer(serializers.ModelSerializer):
         return obj.file.size if obj.file else None
 
 class QuizSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, required=False)  # Add this line
     questions_count = serializers.SerializerMethodField()
     resources_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Quiz
         fields = ['id', 'title', 'description', 'room', 'created_by', 'created_at', 
-                 'is_public', 'questions_count', 'resources_count']
+                 'is_public', 'questions_count', 'resources_count', 'questions']  # Include 'questions'
         read_only_fields = ['id', 'created_by', 'created_at']
     
     def get_questions_count(self, obj):
@@ -54,8 +55,20 @@ class QuizSerializer(serializers.ModelSerializer):
         return obj.quiz_resources.count()
     
     def create(self, validated_data):
+        questions_data = validated_data.pop('questions', [])  # Extract questions data
         validated_data['created_by'] = self.context['request'].user
-        return super().create(validated_data)
+        
+        # Create the Quiz instance
+        quiz = super().create(validated_data)
+        
+        # Create nested Questions and Options
+        for question_data in questions_data:
+            options_data = question_data.pop('options')
+            question = Question.objects.create(quiz=quiz, **question_data)
+            for option_data in options_data:
+                Option.objects.create(question=question, **option_data)
+        
+        return quiz
 
 class QuizDetailSerializer(QuizSerializer):
     questions = QuestionSerializer(many=True, read_only=True)

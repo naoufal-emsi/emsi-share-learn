@@ -1,12 +1,12 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { BookOpen, Plus, Minus } from 'lucide-react';
+import { BookOpen, Plus, Minus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { quizzesAPI } from '@/services/api';
 
 interface Question {
   question: string;
@@ -16,15 +16,17 @@ interface Question {
 
 interface AddQuizDialogProps {
   onQuizAdded: (quiz: any) => void;
+  roomId: string;
 }
 
-const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
+const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded, roomId }) => {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<Question[]>([
     { question: '', options: ['', '', '', ''], correctAnswer: 0 }
   ]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const addQuestion = () => {
@@ -53,36 +55,95 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
     setQuestions(updatedQuestions);
   };
 
-  const handleAddQuiz = () => {
-    if (!title || questions.some(q => !q.question || q.options.some(o => !o))) {
+  const validateQuiz = () => {
+    if (!title) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Quiz title is required",
         variant: "destructive"
       });
-      return;
+      return false;
     }
 
-    const newQuiz = {
-      id: Date.now().toString(),
-      title,
-      description,
-      questions,
-      createdAt: new Date().toISOString()
-    };
+    for (const [qIndex, question] of questions.entries()) {
+      if (!question.question) {
+        toast({
+          title: "Error",
+          description: `Question ${qIndex + 1} is missing text`,
+          variant: "destructive"
+        });
+        return false;
+      }
 
-    onQuizAdded(newQuiz);
-    
-    toast({
-      title: "Quiz Added!",
-      description: "Quiz has been successfully added to the room",
-    });
+      for (const [oIndex, option] of question.options.entries()) {
+        if (!option) {
+          toast({
+            title: "Error",
+            description: `Question ${qIndex + 1} option ${oIndex + 1} is empty`,
+            variant: "destructive"
+          });
+          return false;
+        }
+      }
 
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setQuestions([{ question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
-    setOpen(false);
+      if (question.correctAnswer === null || question.correctAnswer === undefined) {
+        toast({
+          title: "Error",
+          description: `Question ${qIndex + 1} needs a correct answer selected`,
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleAddQuiz = async () => {
+    if (!validateQuiz()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Transform questions for API
+      const apiQuestions = questions.map(question => ({
+        text: question.question,
+        options: question.options.map((text, index) => ({
+          text,
+          is_correct: index === question.correctAnswer
+        }))
+      }));
+
+      const quizData = {
+        title,
+        description,
+        room: roomId,
+        questions: apiQuestions
+      };
+
+      const newQuiz = await quizzesAPI.createQuiz(quizData);
+      
+      onQuizAdded(newQuiz);
+      toast({
+        title: "Quiz Created!",
+        description: "Quiz has been successfully added to the room",
+      });
+
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setQuestions([{ question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+      setOpen(false);
+    } catch (error) {
+      console.error('Quiz creation failed:', error);
+      toast({
+        title: "Creation Failed",
+        description: "Failed to create quiz. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -97,7 +158,7 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
         <DialogHeader>
           <DialogTitle>Add New Quiz</DialogTitle>
           <DialogDescription>
-            Create a new quiz for students to take.
+            Create a new quiz for students to take. All fields marked with * are required.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -108,6 +169,7 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
               placeholder="Quiz title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={isSubmitting}
             />
           </div>
           <div className="grid gap-2">
@@ -117,13 +179,20 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
               placeholder="Quiz description..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={isSubmitting}
             />
           </div>
           
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <Label>Questions</Label>
-              <Button type="button" onClick={addQuestion} size="sm" variant="outline">
+              <Label>Questions *</Label>
+              <Button 
+                type="button" 
+                onClick={addQuestion} 
+                size="sm" 
+                variant="outline"
+                disabled={isSubmitting}
+              >
                 <Plus className="h-4 w-4 mr-1" />
                 Add Question
               </Button>
@@ -139,19 +208,21 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
                       onClick={() => removeQuestion(qIndex)} 
                       size="sm" 
                       variant="destructive"
+                      disabled={isSubmitting}
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
                 <Input
-                  placeholder="Enter question"
+                  placeholder="Enter question *"
                   value={question.question}
                   onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
+                  disabled={isSubmitting}
                 />
                 
                 <div className="space-y-2">
-                  <Label>Options</Label>
+                  <Label>Options *</Label>
                   {question.options.map((option, oIndex) => (
                     <div key={oIndex} className="flex items-center space-x-2">
                       <input
@@ -159,11 +230,13 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
                         name={`correct-${qIndex}`}
                         checked={question.correctAnswer === oIndex}
                         onChange={() => updateQuestion(qIndex, 'correctAnswer', oIndex)}
+                        disabled={isSubmitting}
                       />
                       <Input
-                        placeholder={`Option ${oIndex + 1}`}
+                        placeholder={`Option ${oIndex + 1} *`}
                         value={option}
                         onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                        disabled={isSubmitting}
                       />
                     </div>
                   ))}
@@ -173,7 +246,27 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded }) => {
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit" onClick={handleAddQuiz}>Add Quiz</Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setOpen(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            onClick={handleAddQuiz}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Quiz'
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

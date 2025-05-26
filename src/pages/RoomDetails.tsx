@@ -11,6 +11,29 @@ import { useToast } from '@/hooks/use-toast';
 import AddResourceDialog from '@/components/rooms/AddResourceDialog';
 import AddQuizDialog from '@/components/rooms/AddQuizDialog';
 import { roomsAPI, resourcesAPI, quizzesAPI } from '@/services/api';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+
+type Option = {
+  id: number;
+  text: string;
+  is_correct: boolean;
+};
+
+type Question = {
+  id: number;
+  text: string;
+  options: Option[];
+};
+
+type Quiz = {
+  id: string;
+  title: string;
+  description: string;
+  questions: Question[];
+  questions_count: number;
+  resources_count: number;
+};
 
 interface Room {
   id: string;
@@ -30,7 +53,7 @@ const RoomDetails: React.FC = () => {
   const { toast } = useToast();
   const [room, setRoom] = useState<Room | null>(null);
   const [resources, setResources] = useState<any[]>([]);
-  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const isTeacher = user?.role === 'teacher';
 
@@ -46,7 +69,6 @@ const RoomDetails: React.FC = () => {
         ]);
         setRoom(roomData);
 
-        // Defensive: handle array or paginated object
         let resourceArr = [];
         if (Array.isArray(resourcesData)) {
           resourceArr = resourcesData;
@@ -57,7 +79,6 @@ const RoomDetails: React.FC = () => {
         }
         setResources(resourceArr);
 
-        // Defensive for quizzes too, if needed
         let quizArr = [];
         if (Array.isArray(quizzesData)) {
           quizArr = quizzesData;
@@ -174,19 +195,14 @@ const RoomDetails: React.FC = () => {
               <h2 className="text-xl font-semibold">Resources</h2>
               {isTeacher && (
                 <AddResourceDialog 
-                roomId={roomId} 
-                onResourceAdded={handleResourceAdded} 
-              />
+                  roomId={roomId} 
+                  onResourceAdded={handleResourceAdded} 
+                />
               )}
             </div>
-            {/* Defensive check for resources array */}
             {Array.isArray(resources) && resources.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No resources available yet</p>
-              </div>
-            ) : !Array.isArray(resources) ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">Resource data is unavailable or invalid.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -200,7 +216,11 @@ const RoomDetails: React.FC = () => {
                       {resource.description && (
                         <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
                       )}
-                      <Button className="w-full" size="sm">
+                      <Button 
+                        className="w-full" 
+                        size="sm"
+                        onClick={() => downloadQuizResource(resource.id, resource.filename)}
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
@@ -214,7 +234,10 @@ const RoomDetails: React.FC = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Room Quizzes</h2>
               {isTeacher && (
-                <AddQuizDialog onQuizAdded={handleQuizAdded} />
+                <AddQuizDialog 
+                  roomId={roomId} 
+                  onQuizAdded={handleQuizAdded} 
+                />
               )}
             </div>
             
@@ -229,6 +252,7 @@ const RoomDetails: React.FC = () => {
                     key={quiz.id} 
                     quiz={quiz} 
                     onDownloadResource={downloadQuizResource}
+                    roomId={roomId} // <-- pass roomId here
                   />
                 ))}
               </div>
@@ -240,13 +264,19 @@ const RoomDetails: React.FC = () => {
   );
 };
 
-// Extract QuizCard component to keep file focused
 const QuizCard: React.FC<{ 
-  quiz: any; 
+  quiz: Quiz; 
   onDownloadResource: (resourceId: string, filename: string) => void;
-}> = ({ quiz, onDownloadResource }) => {
+  roomId?: string; // <-- add roomId prop
+}> = ({ quiz, onDownloadResource, roomId }) => {
   const [resources, setResources] = useState<any[]>([]);
   const [showResources, setShowResources] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
+  const [quizResult, setQuizResult] = useState<any>(null);
+  const { toast } = useToast();
 
   const fetchQuizResources = async () => {
     try {
@@ -258,57 +288,214 @@ const QuizCard: React.FC<{
     }
   };
 
+  const handleTakeQuiz = async (roomId: string) => {
+    try {
+      setIsLoadingQuiz(true);
+        const quizDetails = await quizzesAPI.getQuizDetails(quiz.id);
+      
+      const formattedQuiz: Quiz = {
+        id: quizDetails.id,
+        title: quizDetails.title,
+        description: quizDetails.description || '',
+        questions: quizDetails.questions.map((q: any) => ({
+          id: q.id,
+          text: q.text,
+          options: q.options.map((opt: any) => ({
+            id: opt.id,
+            text: opt.text,
+            is_correct: opt.is_correct
+          }))
+        })),
+        questions_count: quizDetails.questions_count,
+        resources_count: quizDetails.resources_count
+      };
+      
+      setSelectedQuiz(formattedQuiz);
+      setAnswers({});
+      setQuizResult(null);
+    } catch (error) {
+      console.error('Failed to load quiz:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load quiz",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingQuiz(false);
+    }
+  };
+
+  const handleAnswerSelect = (questionIndex: number, optionIndex: number) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionIndex]: optionIndex
+    }));
+  };
+
+  const handleQuizSubmit = async () => {
+    if (!selectedQuiz) return;
+  
+    try {
+      setIsSubmitting(true);
+      
+      const formattedAnswers = selectedQuiz.questions.map((question, qIndex) => {
+        const selectedOptionIndex = answers[qIndex] ?? -1;
+        return {
+          question_id: question.id,
+          option_id: selectedOptionIndex >= 0 ? question.options[selectedOptionIndex].id : null
+        };
+      });
+
+      const result = await quizzesAPI.submitQuiz(selectedQuiz.id, formattedAnswers);
+      setQuizResult(result);
+      
+      toast({
+        title: "Quiz Submitted!",
+        description: `Your score: ${result.score}%`,
+      });
+    } catch (error) {
+      console.error('Quiz submission failed:', error);
+      toast({
+        title: "Submission Failed",
+        description: "Failed to submit quiz",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBackToQuizList = () => {
+    setSelectedQuiz(null);
+    setQuizResult(null);
+  };
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{quiz.title}</CardTitle>
-        <CardDescription>{quiz.questions_count} Questions</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {quiz.description && (
-          <p className="text-sm text-muted-foreground">{quiz.description}</p>
-        )}
-        
-        <div className="flex flex-col gap-2">
-          <Button className="w-full" size="sm">
-            <BookOpen className="h-4 w-4 mr-2" />
-            Take Quiz
-          </Button>
-          
-          {quiz.resources_count > 0 && (
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              size="sm"
-              onClick={fetchQuizResources}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              View Resources ({quiz.resources_count})
-            </Button>
+      {selectedQuiz ? (
+        <div className="p-4 space-y-4">
+          {quizResult ? (
+            <div className="space-y-4">
+              <CardHeader className="p-0">
+                <CardTitle className="text-xl">Quiz Results</CardTitle>
+                <CardDescription>
+                  Score: {quizResult.score}% | Correct: {quizResult.questions_correct}/{quizResult.questions_total}
+                </CardDescription>
+              </CardHeader>
+              <Button 
+                className="w-full" 
+                onClick={handleBackToQuizList}
+              >
+                Back to Quizzes
+              </Button>
+            </div>
+          ) : (
+            <>
+              <CardHeader className="p-0">
+                <CardTitle>{selectedQuiz.title}</CardTitle>
+                {selectedQuiz.description && (
+                  <CardDescription>{selectedQuiz.description}</CardDescription>
+                )}
+              </CardHeader>
+              
+              <div className="space-y-6">
+                {selectedQuiz.questions.map((question, qIndex) => (
+                  <div key={question.id} className="space-y-2">
+                    <h4 className="font-medium">{qIndex + 1}. {question.text}</h4>
+                    <div className="space-y-2">
+                      {question.options.map((option, oIndex) => (
+                        <Button
+                          key={option.id}
+                          variant={answers[qIndex] === oIndex ? "default" : "outline"}
+                          className="w-full text-left justify-start"
+                          onClick={() => handleAnswerSelect(qIndex, oIndex)}
+                        >
+                          {option.text}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <Button
+                className="w-full"
+                onClick={handleQuizSubmit}
+                disabled={isSubmitting || 
+                  Object.keys(answers).length < selectedQuiz.questions.length
+                }
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  'Submit Quiz'
+                )}
+              </Button>
+            </>
           )}
         </div>
-        
-        {showResources && resources.length > 0 && (
-          <div className="mt-3 border-t pt-3">
-            <h4 className="text-sm font-medium mb-2">Quiz Resources:</h4>
-            {resources.map((resource) => (
-              <div key={resource.id} className="flex items-center justify-between py-1">
-                <span className="text-xs text-muted-foreground truncate">
-                  {resource.title}
-                </span>
-                <Button
-                  variant="ghost"
+      ) : (
+        <>
+          <CardHeader>
+            <CardTitle className="text-base">{quiz.title}</CardTitle>
+            <CardDescription>{quiz.questions_count} Questions</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {quiz.description && (
+              <p className="text-sm text-muted-foreground">{quiz.description}</p>
+            )}
+            
+            <div className="flex flex-col gap-2">
+              <Button 
+                className="w-full" 
+                size="sm"
+                onClick={() => handleTakeQuiz(roomId)}
+                disabled={isLoadingQuiz}
+              >
+                {isLoadingQuiz ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <BookOpen className="h-4 w-4 mr-2" />
+                )}
+                Take Quiz
+              </Button>
+              
+              {quiz.resources_count > 0 && (
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
                   size="sm"
-                  onClick={() => onDownloadResource(resource.id, resource.filename)}
-                  className="h-6 px-2"
+                  onClick={fetchQuizResources}
                 >
-                  <Download className="h-3 w-3" />
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Resources ({quiz.resources_count})
                 </Button>
+              )}
+            </div>
+            
+            {showResources && resources.length > 0 && (
+              <div className="mt-3 border-t pt-3">
+                <h4 className="text-sm font-medium mb-2">Quiz Resources:</h4>
+                {resources.map((resource) => (
+                  <div key={resource.id} className="flex items-center justify-between py-1">
+                    <span className="text-xs text-muted-foreground truncate">
+                      {resource.title}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDownloadResource(resource.id, resource.filename)}
+                      className="h-6 px-2"
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
+            )}
+          </CardContent>
+        </>
+      )}
     </Card>
   );
 };
