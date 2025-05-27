@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -18,6 +17,7 @@ class User(AbstractUser):
     date_of_birth = models.DateField(null=True, blank=True)
     is_verified = models.BooleanField(default=False)
     last_activity = models.DateTimeField(auto_now=True)
+    profile_picture = models.BinaryField(null=True, blank=True)
     
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'role']
