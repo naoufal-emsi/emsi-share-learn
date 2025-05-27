@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     RegisterView, UserDetailView, UserListView, ChangePasswordView, ProfilePictureUploadView, ProfilePictureDeleteView,
-    ProfilePictureDBUploadView, ProfilePictureDBGetView, ProfilePictureDBDeleteView
+    ProfilePictureDBUploadView, ProfilePictureDBGetView
 )
 
 urlpatterns = [
@@ -13,5 +13,4 @@ urlpatterns = [
     path('profile-picture/delete/', ProfilePictureDeleteView.as_view(), name='profile-picture-delete'),
     path('profile/upload-picture', ProfilePictureDBUploadView.as_view(), name='profile-picture-db-upload'),
     path('profile/picture', ProfilePictureDBGetView.as_view(), name='profile-picture-db-get'),
-    path('profile/picture', ProfilePictureDBDeleteView.as_view(), name='profile-picture-db-delete'),
 ]

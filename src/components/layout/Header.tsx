@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,12 +12,31 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Bell, LogOut, Settings, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ProfileEditDialog } from '@/components/ui/ProfileEditDialog';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+
+const DEFAULT_AVATAR = "/placeholder.svg";
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [profilePic, setProfilePic] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    async function fetchProfilePicture() {
+      const token = document.cookie.split('; ').find(row => row.startsWith('emsi_access='))?.split('=')[1];
+      const res = await fetch('http://127.0.0.1:8000/api/auth/profile/picture', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.image) setProfilePic(data.image);
+        else setProfilePic(undefined);
+      } else {
+        setProfilePic(undefined);
+      }
+    }
+    if (user) fetchProfilePicture();
+  }, [user]);
 
   return (
     <header className="bg-gradient-to-r from-primary to-primary-light dark:from-primary-dark dark:to-primary shadow-sm border-b border-gray-200 dark:border-gray-700 py-3 px-4 md:px-6 flex items-center justify-between">
@@ -41,8 +59,8 @@ const Header: React.FC = () => {
               onClick={() => navigate('/profile')}
             >
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.avatar} alt={user?.name} />
-                <AvatarFallback className="bg-white text-primary dark:bg-gray-800 dark:text-white">{user?.name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={profilePic || user?.avatar || DEFAULT_AVATAR} alt={user?.name} />
+                <AvatarFallback className="bg-white text-primary dark:bg-gray-800 dark:text-white">{user?.name?.charAt(0)}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

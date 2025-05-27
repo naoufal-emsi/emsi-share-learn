@@ -67,25 +67,6 @@ const ProfileForm: React.FC = () => {
     }
   };
 
-  // Delete avatar handler (from DB)
-  const handleAvatarDelete = async () => {
-    setLoading(true);
-    try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('emsi_access='))?.split('=')[1];
-      const res = await fetch('http://127.0.0.1:8000/api/auth/profile/picture', {
-        method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('Delete failed');
-      setAvatar("");
-      toast({ title: 'Profile picture removed.' });
-    } catch (err) {
-      toast({ title: 'Delete failed', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Change password handler
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +116,6 @@ const ProfileForm: React.FC = () => {
         </Avatar>
         <div className="flex gap-2 mt-2">
           <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={loading} className="dark:bg-gray-800 dark:text-white">Upload</Button>
-          <Button type="button" variant="destructive" onClick={handleAvatarDelete} disabled={loading} className="dark:bg-gray-800 dark:text-white">Delete</Button>
         </div>
         <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleAvatarUpload} />
       </div>
