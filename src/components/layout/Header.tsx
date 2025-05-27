@@ -13,20 +13,22 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Bell, LogOut, Settings, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import {ProfileEditDialog} from '@/components/ui/ProfileEditDialog'
+import { ProfileEditDialog } from '@/components/ui/ProfileEditDialog';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   return (
-    <header className="bg-gradient-to-r from-primary to-primary-light shadow-sm border-b border-gray-200 py-3 px-4 md:px-6 flex items-center justify-between">
+    <header className="bg-gradient-to-r from-primary to-primary-light dark:from-primary-dark dark:to-primary shadow-sm border-b border-gray-200 dark:border-gray-700 py-3 px-4 md:px-6 flex items-center justify-between">
       <div className="flex items-center">
         <Link to="/" className="flex items-center">
           <h1 className="text-2xl font-bold text-white">EMSI Share</h1>
         </Link>
       </div>
       <div className="flex items-center space-x-4">
+        <ThemeToggle />
         <Button variant="ghost" size="icon" className="relative text-white hover:bg-accent/20 transition-colors">
           <Bell className="h-5 w-5" />
           <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-accent"></span>
@@ -40,14 +42,14 @@ const Header: React.FC = () => {
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.avatar} alt={user?.name} />
-                <AvatarFallback className="bg-white text-primary">{user?.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback className="bg-white text-primary dark:bg-gray-800 dark:text-white">{user?.name.charAt(0)}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuContent className="w-56 bg-background border border-border shadow-lg" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.name}</p>
+                <p className="text-sm font-medium leading-none text-foreground">{user?.name}</p>
                 <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                 <p className="text-xs leading-none text-muted-foreground capitalize">{user?.role}</p>
               </div>
