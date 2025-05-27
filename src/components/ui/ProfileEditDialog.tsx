@@ -136,13 +136,13 @@ const ProfileForm: React.FC = () => {
         <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} required className="dark:bg-gray-800 dark:text-white" />
       </div>
       <Button type="submit" disabled={loading} className="w-full dark:bg-primary dark:text-white">{loading ? "Saving..." : "Save Changes"}</Button>
-      <form onSubmit={handlePasswordChange} className="space-y-4 mt-6 w-full">
+      <div className="space-y-4 mt-6 w-full">
         <div>
           <Label htmlFor="newPassword">Set New Password</Label>
           <Input id="newPassword" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="New password" className="dark:bg-gray-800 dark:text-white" />
         </div>
-        <Button type="submit" disabled={passwordLoading} className="w-full dark:bg-primary dark:text-white">{passwordLoading ? "Changing..." : "Change Password"}</Button>
-      </form>
+        <Button type="button" onClick={handlePasswordChange} disabled={passwordLoading} className="w-full dark:bg-primary dark:text-white">{passwordLoading ? "Changing..." : "Change Password"}</Button>
+      </div>
     </form>
   );
 };

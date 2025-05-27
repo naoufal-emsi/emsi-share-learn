@@ -13,6 +13,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Copy, FileText, BookOpen, Download, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import Quiz from './Quiz'; // Import the Quiz component
+
 
 type Option = {
   id: number;
@@ -55,9 +57,17 @@ const RoomDetails: React.FC = () => {
   const [resources, setResources] = useState<any[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false); // Add this line
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false); 
+  const [showQuizModal, setShowQuizModal] = useState(false); // New state for quiz modal visibility
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null); // New state to hold the selected quiz ID
   const isTeacher = user?.role === 'teacher';
   const navigate = useNavigate();
+
+  // Add this function to RoomDetails component
+  const handleTakeQuiz = (quizId: string) => {
+    setSelectedQuizId(quizId);
+    setShowQuizModal(true);
+  };
 
   useEffect(() => {
     const fetchRoomData = async () => {
@@ -304,7 +314,8 @@ const RoomDetails: React.FC = () => {
                     key={quiz.id} 
                     quiz={quiz} 
                     onDownloadResource={downloadResource}
-                    roomId={roomId} // <-- pass roomId here
+                    roomId={roomId} 
+                    onTakeQuiz={handleTakeQuiz} // Pass the handleTakeQuiz from RoomDetails
                   />
                 ))}
               </div>
@@ -312,6 +323,21 @@ const RoomDetails: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Quiz Modal */}
+      <Dialog open={showQuizModal} onOpenChange={setShowQuizModal}>
+        <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Take Quiz</DialogTitle>
+          </DialogHeader>
+          {selectedQuizId && (
+            <Quiz 
+              quizId={selectedQuizId} 
+              onClose={() => setShowQuizModal(false)} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
@@ -319,8 +345,9 @@ const RoomDetails: React.FC = () => {
 const QuizCard: React.FC<{ 
   quiz: Quiz; 
   onDownloadResource: (resourceId: string, filename: string) => void;
-  roomId?: string; // <-- add roomId prop
-}> = ({ quiz, onDownloadResource, roomId }) => {
+  roomId?: string; 
+  onTakeQuiz: (quizId: string) => void; // Keep this prop definition
+}> = ({ quiz, onDownloadResource, roomId, onTakeQuiz }) => {
   const [resources, setResources] = useState<any[]>([]);
   const [showResources, setShowResources] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
@@ -340,41 +367,11 @@ const QuizCard: React.FC<{
     }
   };
 
-  const handleTakeQuiz = async (roomId: string) => {
-    try {
-      setIsLoadingQuiz(true);
-        const quizDetails = await quizzesAPI.getQuizDetails(quiz.id);
-      
-      const formattedQuiz: Quiz = {
-        id: quizDetails.id,
-        title: quizDetails.title,
-        description: quizDetails.description || '',
-        questions: quizDetails.questions.map((q: any) => ({
-          id: q.id,
-          text: q.text,
-          options: q.options.map((opt: any) => ({
-            id: opt.id,
-            text: opt.text,
-            is_correct: opt.is_correct
-          }))
-        })),
-        questions_count: quizDetails.questions_count,
-        resources_count: quizDetails.resources_count
-      };
-      
-      setSelectedQuiz(formattedQuiz);
-      setAnswers({});
-      setQuizResult(null);
-    } catch (error) {
-      console.error('Failed to load quiz:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load quiz",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoadingQuiz(false);
-    }
+  const handleTakeQuiz = async (quizId: string) => {
+    onTakeQuiz(quizId); // Use the new prop to open the modal
+    // Close the current dialog if it's open
+    setSelectedQuiz(null);
+    setQuizResult(null);
   };
 
   const handleAnswerSelect = (questionIndex: number, optionIndex: number) => {
@@ -501,7 +498,7 @@ const QuizCard: React.FC<{
               <Button 
                 className="w-full" 
                 size="sm"
-                onClick={() => handleTakeQuiz(roomId)}
+                onClick={() => onTakeQuiz(quiz.id)} // Use onTakeQuiz prop
                 disabled={isLoadingQuiz}
               >
                 {isLoadingQuiz ? (
@@ -524,26 +521,32 @@ const QuizCard: React.FC<{
                 </Button>
               )}
             </div>
-            
-            {showResources && resources.length > 0 && (
-              <div className="mt-3 border-t pt-3">
-                <h4 className="text-sm font-medium mb-2">Quiz Resources:</h4>
-                {resources.map((resource) => (
-                  <div key={resource.id} className="flex items-center justify-between py-1">
-                    <span className="text-xs text-muted-foreground truncate">
-                      {resource.title}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDownloadResource(resource.id, resource.filename)}
-                      className="h-6 px-2"
-                    >
-                      <Download className="h-3 w-3" />
-                    </Button>
+
+            {showResources && (
+              <Dialog open={showResources} onOpenChange={setShowResources}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Quiz Resources</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2">
+                    {resources.length > 0 ? (
+                      resources.map((resource) => (
+                        <div key={resource.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <span>{resource.title}</span>
+                          <Button size="sm" onClick={() => onDownloadResource(resource.id, resource.filename)}>
+                            Download
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <p>No resources available for this quiz.</p>
+                    )}
                   </div>
-                ))}
-              </div>
+                  <DialogFooter>
+                    <Button onClick={() => setShowResources(false)}>Close</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
           </CardContent>
         </>

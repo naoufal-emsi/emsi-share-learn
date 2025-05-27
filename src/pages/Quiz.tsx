@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import MainLayout from '@/components/layout/MainLayout';
+// import MainLayout from '@/components/layout/MainLayout'; // Remove this line
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -30,13 +30,17 @@ interface QuizData {
   }>;
 }
 
-const Quiz: React.FC = () => {
-  const { quizId } = useParams();
+interface QuizProps {
+  quizId: string;
+  onClose: () => void;
+}
+
+const Quiz: React.FC<QuizProps> = ({ quizId, onClose }) => {
+  // const { quizId } = useParams(); // Remove this line
   const navigate = useNavigate();
   const { toast } = useToast();
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<Array<{ question_id: number; option_id: number }>>([]);
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState<any>(null);
@@ -51,6 +55,11 @@ const Quiz: React.FC = () => {
         const data = await quizzesAPI.getQuizDetails(quizId);
         console.log('Quiz data:', data);
         setQuizData(data);
+        // Initialize userAnswers with -1 for each question's option_id
+        setUserAnswers(data.questions.map(q => ({
+          question_id: q.id,
+          option_id: -1, // -1 indicates no option selected yet
+        })));
       } catch (error) {
         console.error('Failed to fetch quiz:', error);
         toast({
@@ -93,11 +102,22 @@ const Quiz: React.FC = () => {
   };
 
   const handleOptionChange = (value: string) => {
-    setSelectedOption(value);
+    const updatedAnswers = [...userAnswers];
+    updatedAnswers[currentQuestionIndex].option_id = parseInt(value);
+    setUserAnswers(updatedAnswers);
+  };
+
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
   };
 
   const handleNextQuestion = async () => {
-    if (!selectedOption || !quizData) {
+    if (!quizData) return;
+
+    const currentAnswer = userAnswers[currentQuestionIndex];
+    if (currentAnswer.option_id === -1) {
       toast({
         title: "Please select an answer",
         description: "You need to select an option before proceeding.",
@@ -106,20 +126,12 @@ const Quiz: React.FC = () => {
       return;
     }
 
-    const currentQuestion = quizData.questions[currentQuestionIndex];
-    const newAnswer = {
-      question_id: currentQuestion.id,
-      option_id: parseInt(selectedOption)
-    };
-    
-    const updatedAnswers = [...userAnswers, newAnswer];
-    setUserAnswers(updatedAnswers);
-
     if (currentQuestionIndex < quizData.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedOption(null);
     } else {
-      await submitQuiz(updatedAnswers);
+      // Filter out questions that were not answered before submitting
+      const submittedAnswers = userAnswers.filter(answer => answer.option_id !== -1);
+      await submitQuiz(submittedAnswers);
     }
   };
 
@@ -150,9 +162,12 @@ const Quiz: React.FC = () => {
   };
 
   const handleRestartQuiz = () => {
+    if (!quizData) return;
     setCurrentQuestionIndex(0);
-    setSelectedOption(null);
-    setUserAnswers([]);
+    setUserAnswers(quizData.questions.map(q => ({
+      question_id: q.id,
+      option_id: -1,
+    })));
     setShowResults(false);
     setResults(null);
     toast({
@@ -162,40 +177,38 @@ const Quiz: React.FC = () => {
   };
 
   const handleBackToRoom = () => {
-    navigate(-1);
+    onClose(); // Use the onClose prop to close the modal
   };
 
   if (loading) {
     return (
-      <MainLayout>
-        <div className="flex items-center justify-center h-64">
-          <div>Loading quiz...</div>
-        </div>
-      </MainLayout>
+      <div className="flex items-center justify-center h-64">
+        <div>Loading quiz...</div>
+      </div>
     );
   }
 
   if (!quizData) {
     return (
-      <MainLayout>
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">Quiz not found</p>
-          <Button onClick={handleBackToRoom} className="mt-4">
-            Back to Room
-          </Button>
-        </div>
-      </MainLayout>
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Quiz not found</p>
+        <Button onClick={handleBackToRoom} className="mt-4">
+          Back to Room
+        </Button>
+      </div>
     );
   }
 
   const currentQuestion = quizData.questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / quizData.questions.length) * 100;
 
+  // Get the selected option for the current question from userAnswers
+  const selectedOptionId = userAnswers[currentQuestionIndex]?.option_id;
+
   return (
-    <MainLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold flex items-center tracking-tight">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold flex items-center tracking-tight">
             <GraduationCap className="mr-2 h-8 w-8" />
             {quizData.title}
           </h1>
@@ -248,7 +261,7 @@ const Quiz: React.FC = () => {
                 <div className="mb-4">
                   <h3 className="text-lg font-medium">{currentQuestion.text}</h3>
                 </div>
-                <RadioGroup onValueChange={handleOptionChange} value={selectedOption || ''}>
+                <RadioGroup onValueChange={handleOptionChange} value={selectedOptionId !== -1 ? selectedOptionId.toString() : ''}>
                   <div className="space-y-3">
                     {currentQuestion.options.map((option) => (
                       <div key={option.id} className="flex items-center space-x-2 border rounded-md p-3 hover:border-primary hover:bg-muted/50">
@@ -259,11 +272,17 @@ const Quiz: React.FC = () => {
                   </div>
                 </RadioGroup>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex justify-between">
+                <Button 
+                  onClick={handlePreviousQuestion} 
+                  disabled={currentQuestionIndex === 0 || submitting}
+                  variant="outline"
+                >
+                  Go Back
+                </Button>
                 <Button 
                   onClick={handleNextQuestion} 
-                  disabled={!selectedOption || submitting} 
-                  className="ml-auto"
+                  disabled={selectedOptionId === -1 || submitting} 
                 >
                   {submitting ? "Submitting..." : 
                    currentQuestionIndex === quizData.questions.length - 1 ? "Submit Quiz" : "Next Question"}
@@ -299,7 +318,6 @@ const Quiz: React.FC = () => {
           )}
         </div>
       </div>
-    </MainLayout>
   );
 };
 
