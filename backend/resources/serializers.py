@@ -11,6 +11,9 @@ class ResourceSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'file', 'type', 'room', 
                  'uploaded_by', 'uploaded_at', 'file_size', 'file_name']
         read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'file_size', 'file_name']
+        extra_kwargs = {
+            'room': {'required': False, 'allow_null': True}
+        }
     
     def get_file_size(self, obj):
         return obj.file.size if obj.file else None

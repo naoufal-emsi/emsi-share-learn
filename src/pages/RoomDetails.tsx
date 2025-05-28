@@ -254,11 +254,17 @@ const RoomDetails: React.FC = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Resources</h2>
               {isTeacher && (
-                <AddResourceDialog 
-                  roomId={roomId} 
-                  onResourceAdded={handleResourceAdded} 
-                />
-              )}
+  <AddResourceDialog 
+    roomId={roomId}
+    onResourceAdded={handleResourceAdded}
+    triggerButton={
+      <Button size="sm">
+        <FileText className="h-4 w-4 mr-2" />
+        Add Resource
+      </Button>
+    }
+  />
+)}
             </div>
             {Array.isArray(resources) && resources.length === 0 ? (
               <div className="text-center py-8">
@@ -267,7 +273,7 @@ const RoomDetails: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {resources.map((resource) => (
-                  <Card key={resource.id}>
+                  <Card key={resource.id} className="overflow-hidden">
                     <CardHeader>
                       <CardTitle className="text-base">{resource.title}</CardTitle>
                       <CardDescription>{resource.type?.toUpperCase?.() || ''}</CardDescription>

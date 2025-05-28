@@ -14,8 +14,13 @@ class ResourceViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         room_id = self.request.query_params.get('room', None)
         if room_id:
-            return Resource.objects.filter(room=room_id).order_by('uploaded_at')
-        return Resource.objects.none()
+            return Resource.objects.filter(room=room_id).order_by('-uploaded_at')
+        # If no room_id, return all resources (or public ones, depending on your logic)
+        # For now, let's assume it means resources not tied to any specific room, or all resources.
+        # If you want to distinguish public resources, you might add a boolean field e.g. `is_public` to the Resource model.
+        return Resource.objects.filter(room__isnull=True).order_by('-uploaded_at') # Example: fetch only room-less resources
+        # Or to fetch all: return Resource.objects.all().order_by('-uploaded_at')
+    # return Resource.objects.none() # Removed this line which caused SyntaxError
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:

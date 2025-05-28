@@ -3,8 +3,9 @@ from django.conf import settings
 from rooms.models import Room
 
 def resource_upload_path(instance, filename):
-    # Use the Room's primary key (which is the public room code)
-    return f'resources/room_{instance.room.pk}/{filename}'
+    if instance.room:
+        return f'resources/room_{instance.room.pk}/{filename}'
+    return f'resources/general/{filename}'
 
 class Resource(models.Model):
     RESOURCE_TYPES = (
@@ -25,7 +26,7 @@ class Resource(models.Model):
     file = models.FileField(upload_to=resource_upload_path, null=True, blank=True)
     external_url = models.URLField(null=True, blank=True)
     type = models.CharField(max_length=10, choices=RESOURCE_TYPES)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='resources')
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='resources', null=True, blank=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='uploaded_resources')
     file_size = models.BigIntegerField(null=True, blank=True)
     download_count = models.IntegerField(default=0)
@@ -36,6 +37,6 @@ class Resource(models.Model):
         return self.title
 
     def save(self, *args, **kwargs):
-        if self.file:
+        if self.file and hasattr(self.file, 'size'): # Check if file exists and has size attribute
             self.file_size = self.file.size
         super().save(*args, **kwargs)

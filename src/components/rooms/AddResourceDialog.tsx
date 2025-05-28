@@ -10,12 +10,23 @@ import { useToast } from '@/hooks/use-toast';
 import { resourcesAPI } from '@/services/api';
 
 interface AddResourceDialogProps {
-  onResourceAdded: (resource: any) => void;
-  roomId: string;
+  onResourceAdded?: (resource: any) => void;
+  roomId?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  triggerButton?: React.ReactNode;
+  onUpload?: (formData: FormData) => Promise<void>;
 }
 
-const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, roomId }) => {
-  const [open, setOpen] = useState(false);
+const AddResourceDialog: React.FC<AddResourceDialogProps> = ({
+  onResourceAdded,
+  roomId,
+  open,
+  onOpenChange,
+  triggerButton,
+  onUpload,
+}) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState('');
@@ -55,23 +66,17 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, 
       formData.append('description', description || '');
       formData.append('type', type);
       formData.append('file', file);
-      formData.append('room', roomId);
+      if (roomId) formData.append('room', roomId);
 
-      // Send POST request to backend
-      const newResource = await resourcesAPI.uploadResource(formData);
+      // Use provided onUpload or default implementation
+      const newResource = onUpload 
+        ? await onUpload(formData)
+        : await resourcesAPI.uploadResource(formData);
 
-      if (!newResource || !newResource.id) {
-        throw new Error('Invalid response from server');
-      }
-
-      onResourceAdded(newResource);
-      toast({
-        title: "Success!",
-        description: "Resource has been successfully uploaded",
-      });
-
+      onResourceAdded?.(newResource);
+      toast({ title: "Success!", description: "Resource uploaded" });
       resetForm();
-      setOpen(false);
+      setInternalOpen(false);
     } catch (error: any) {
       console.error('Resource upload failed:', error);
       toast({
@@ -85,13 +90,17 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, 
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Upload className="h-4 w-4 mr-2" />
-          Add Resource
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open ?? internalOpen} onOpenChange={onOpenChange ?? setInternalOpen}>
+      {triggerButton ? (
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+      ) : (
+        <DialogTrigger asChild>
+          <Button>
+            <Upload className="h-4 w-4 mr-2" />
+            Add Resource
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Resource</DialogTitle>
@@ -161,7 +170,7 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({ onResourceAdded, 
             variant="outline" 
             onClick={() => {
               resetForm();
-              setOpen(false);
+              setInternalOpen(false);
             }}
             disabled={isUploading}
           >

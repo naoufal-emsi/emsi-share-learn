@@ -127,8 +127,15 @@ export const roomsAPI = {
 
 // Resources API
 export const resourcesAPI = {
-  getResources: async (roomId: string) => {
-    return apiRequest(`/resources/?room=${roomId}`);
+  getResources: async (roomId?: string) => {
+    const endpoint = roomId ? `/resources/?room=${roomId}` : '/resources/';
+    const response = await apiRequest(endpoint);
+
+    // Ensure consistent response structure
+    return {
+      results: Array.isArray(response) ? response : response?.results || [],
+      count: response?.count || 0
+    };
   },
   
   uploadResource: async (formData: FormData) => {
