@@ -140,24 +140,34 @@ export const resourcesAPI = {
   
   uploadResource: async (formData: FormData) => {
     const token = getAuthToken();
+    
+    // Log the formData contents for debugging
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
+    
     const response = await fetch(`${API_BASE_URL}/resources/`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
+        // Don't set Content-Type header - let browser set it with boundary for multipart
       },
       body: formData,
     });
     
     if (!response.ok) {
-      throw new Error('Failed to upload resource');
+      const errorData = await response.text();
+      console.error('Upload error response:', errorData);
+      throw new Error(`Failed to upload resource: ${response.status} ${response.statusText}`);
     }
     
     return response.json();
   },
   
-  downloadResource: async (roomCode: string, resourceId: string) => {
+  downloadResource: async (resourceId: string) => {
     const token = getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/resources/${roomCode}/download/?resource_id=${resourceId}`, {
+    const response = await fetch(`${API_BASE_URL}/resources/${resourceId}/download/`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

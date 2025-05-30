@@ -158,8 +158,8 @@ const RoomDetails: React.FC = () => {
   const downloadResource = async (resourceId: string, filename: string) => {
     try {
       // Use roomId from the URL params (which is the room code)
-      if (!roomId) throw new Error('Room ID is missing');
-      const blob = await resourcesAPI.downloadResource(roomId, resourceId);
+      // if (!roomId) throw new Error('Room ID is missing'); // This line is no longer needed
+      const blob = await resourcesAPI.downloadResource(resourceId); // Pass only resourceId
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

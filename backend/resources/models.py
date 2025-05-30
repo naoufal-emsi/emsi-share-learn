@@ -23,7 +23,9 @@ class Resource(models.Model):
     
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    file = models.FileField(upload_to=resource_upload_path, null=True, blank=True)
+    file_data = models.BinaryField(null=True, blank=True)  # Stores binary data directly
+    file_name = models.CharField(max_length=255, null=True, blank=True)  # Store original filename
+    file_type = models.CharField(max_length=100, null=True, blank=True)  # Store MIME type
     external_url = models.URLField(null=True, blank=True)
     type = models.CharField(max_length=10, choices=RESOURCE_TYPES)
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='resources', null=True, blank=True)
@@ -37,6 +39,19 @@ class Resource(models.Model):
         return self.title
 
     def save(self, *args, **kwargs):
-        if self.file and hasattr(self.file, 'size'): # Check if file exists and has size attribute
-            self.file_size = self.file.size
+        # Only calculate file_size if file_data is bytes and not already set
+        if self.file_data and isinstance(self.file_data, (bytes, memoryview)) and not self.file_size:
+            self.file_size = len(self.file_data)
         super().save(*args, **kwargs)
+    
+    @property
+    def has_file(self):
+        """Check if resource has file data"""
+        return bool(self.file_data)
+    
+    @property
+    def file_size_mb(self):
+        """Get file size in MB"""
+        if self.file_size:
+            return round(self.file_size / (1024 * 1024), 2)
+        return 0

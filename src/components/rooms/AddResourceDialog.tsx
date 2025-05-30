@@ -65,7 +65,7 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({
       formData.append('title', title.trim());
       formData.append('description', description || '');
       formData.append('type', type);
-      formData.append('file', file);
+      formData.append('file_data', file); // <-- change 'file' to 'file_data'
       if (roomId) formData.append('room', roomId);
 
       // Use provided onUpload or default implementation
@@ -128,7 +128,6 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({
               <SelectContent>
                 <SelectItem value="pdf">PDF Document</SelectItem>
                 <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="audio">Audio</SelectItem>
                 <SelectItem value="image">Image</SelectItem>
                 <SelectItem value="doc">Word Document</SelectItem>
                 <SelectItem value="ppt">PowerPoint</SelectItem>
@@ -154,7 +153,7 @@ const AddResourceDialog: React.FC<AddResourceDialogProps> = ({
               id="file"
               type="file"
               onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.mp3,.avi,.mov,.jpg,.jpeg,.png,.gif"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.mp4,.avi,.mov,.jpg,.jpeg,.png,.gif"
               disabled={isUploading}
             />
             {file && (

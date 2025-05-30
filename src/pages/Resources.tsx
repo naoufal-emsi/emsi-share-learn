@@ -123,35 +123,37 @@ const Resources: React.FC = () => {
     }
   };
 
+  const handleDownload = async (resource: Resource) => {
+    try {
+      const blob = await resourcesAPI.downloadResource(resource.id.toString());
+      const filename =  resource.title || `resource_${resource.id}`;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error('Failed to download resource.');
+    }
+  };
+
   return (
     <MainLayout>
-      <AddResourceDialog
-        open={isUploadModalOpen}
-        onOpenChange={setIsUploadModalOpen}
-        onUpload={handleUpload}
-        onResourceAdded={handleResourceUploaded}
-      />
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Resources</h1>
-            <p className="text-muted-foreground">
-              Browse and access learning materials
-            </p>
-          </div>
-          
-          {user?.role === 'teacher' && (
-            <Button 
-              className="bg-primary hover:bg-primary-dark"
-              onClick={handleUploadResourceClick} 
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Resource
-            </Button>
-          )}
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Resources</h1>
+          <p className="text-muted-foreground">
+            Browse and access learning materials
+          </p>
         </div>
-        
-        <div className="flex flex-col sm:flex-row gap-4">
+      </div>
+      
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 flex-1">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search resources..." className="pl-9" />
@@ -161,6 +163,16 @@ const Resources: React.FC = () => {
             Filters
           </Button>
         </div>
+        
+        {user?.role === 'teacher' &&
+          <AddResourceDialog
+      open={isUploadModalOpen}
+      onOpenChange={setIsUploadModalOpen}
+      onUpload={handleUpload}
+      onResourceAdded={handleResourceUploaded}
+    />}
+
+      </div>
         
         <Tabs defaultValue="all">
           <TabsList className="mb-4">
@@ -222,7 +234,7 @@ const Resources: React.FC = () => {
                           </div>
                           <div className="bg-muted px-4 py-3 flex items-center justify-between text-xs text-muted-foreground">
                             <div className="flex items-center">
-                              <span>By {resource.author ? `${resource.author.firstname} ${resource.author.lastname}` : 'Unknown Author'}</span>
+
                               <span className="mx-2">•</span>
                               <span>{new Date(resource.date).toLocaleDateString()}</span>
                             </div>
@@ -234,11 +246,7 @@ const Resources: React.FC = () => {
                           <div className="p-3 flex space-x-2">
                             <Button 
                               className="w-full text-xs h-8"
-                              onClick={() => { 
-                                if (resource.file_url) window.open(resource.file_url, '_blank');
-                                // else, you might need a download function similar to the one in RoomDetails or Quiz page
-                                else toast.error('No download link available.');
-                              }}
+                              onClick={() => handleDownload(resource)}
                             >
                               <Download className="h-3 w-3 mr-1" />
                               Download
@@ -290,7 +298,7 @@ const Resources: React.FC = () => {
                             </div>
                             <div className="bg-muted px-4 py-3 flex items-center justify-between text-xs text-muted-foreground">
                               <div className="flex items-center">
-                                <span>By {resource.author ? `${resource.author.firstname} ${resource.author.lastname}` : 'Unknown Author'}</span>
+                                
                                 <span className="mx-2">•</span>
                                 <span>{new Date(resource.date).toLocaleDateString()}</span>
                               </div>
@@ -355,7 +363,7 @@ const Resources: React.FC = () => {
                             </div>
                             <div className="bg-muted px-4 py-3 flex items-center justify-between text-xs text-muted-foreground">
                               <div className="flex items-center">
-                                <span>By {resource.author ? `${resource.author.firstname} ${resource.author.lastname}` : 'Unknown Author'}</span>
+                               
                                 <span className="mx-2">•</span>
                                 <span>{new Date(resource.date).toLocaleDateString()}</span>
                               </div>
@@ -420,7 +428,7 @@ const Resources: React.FC = () => {
                             </div>
                             <div className="bg-muted px-4 py-3 flex items-center justify-between text-xs text-muted-foreground">
                               <div className="flex items-center">
-                                <span>By {resource.author ? `${resource.author.firstname} ${resource.author.lastname}` : 'Unknown Author'}</span>
+                               
                                 <span className="mx-2">•</span>
                                 <span>{new Date(resource.date).toLocaleDateString()}</span>
                               </div>

@@ -28,7 +28,7 @@ const Dashboard: React.FC = () => {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomSubject, setNewRoomSubject] = useState('');
   const [newRoomDescription, setNewRoomDescription] = useState('');
-
+  const [showAllRooms, setShowAllRooms] = useState(false);
   // Fetch rooms on mount
   useEffect(() => {
     const fetchRooms = async () => {
@@ -150,15 +150,29 @@ const Dashboard: React.FC = () => {
             {rooms.length === 0 ? (
               <p className="text-muted-foreground">No rooms found.</p>
             ) : (
-              <ul className="space-y-2">
-                {rooms.map(room => (
-                  <li key={room.id} className="p-3 border rounded-lg">
-                    <div className="font-medium">{room.name}</div>
-                    <div className="text-sm text-muted-foreground">{room.subject}</div>
-                    <div className="text-xs text-muted-foreground">ID: {room.id}</div>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {(showAllRooms ? rooms : rooms.slice(0, 3)).map(room => (
+                    <li
+                      key={room.id}
+                      className="p-3 border rounded-lg shadow-sm bg-background border-zinc-200 dark:border-zinc-700 transition-colors"
+                    >
+                      <div className="font-medium text-foreground">{room.name}</div>
+                      <div className="text-sm text-muted-foreground">{room.subject}</div>
+                      <div className="text-xs text-muted-foreground">ID: {room.id}</div>
+                    </li>
+                  ))}
+                </ul>
+                {rooms.length > 3 && (
+                  <Button
+                    className="mt-2"
+                    variant="outline"
+                    onClick={() => setShowAllRooms(!showAllRooms)}
+                  >
+                    {showAllRooms ? 'Show Less' : 'Show More'}
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}
