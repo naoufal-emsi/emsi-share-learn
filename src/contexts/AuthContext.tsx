@@ -23,6 +23,7 @@ type User = {
   email: string;
   role: 'student' | 'teacher' | 'admin';
   avatar?: string;
+  profilePicture?: string;
 };
 
 type AuthContextType = {
@@ -32,6 +33,7 @@ type AuthContextType = {
   logout: () => void;
   register: (name: string, email: string, password: string, role: 'student' | 'teacher') => Promise<void>;
   updateProfile: (profileData: Partial<{ first_name: string; last_name: string; email: string; avatar?: string }>) => Promise<void>;
+  refreshProfilePicture: () => Promise<void>;
 };
 
 // Create the context
@@ -43,11 +45,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [checked, setChecked] = useState(false); // Prevents flicker on first load
 
+  const fetchProfilePicture = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/auth/profile/picture/', {
+        headers: { Authorization: `Bearer ${getCookie('emsi_access')}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.image) {
+          setUser(prev => prev ? { ...prev, profilePicture: data.image } : null);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch profile picture:', error);
+    }
+  };
+
   // On mount, check for token in cookies and auto-login if valid
   useEffect(() => {
     const token = getCookie('emsi_access');
     if (token) {
       authAPI.getMe().then(userData => {
+        if (!userData) {
+          throw new Error('Failed to get user data');
+        }
         const mappedUser: User = {
           id: userData.id.toString(),
           name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.username,
@@ -57,8 +78,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(mappedUser);
         setIsAuthenticated(true);
+        fetchProfilePicture();
         setChecked(true);
-      }).catch(() => {
+      }).catch((error) => {
+        console.error('Error fetching user data:', error);
         logout();
         setChecked(true);
       });
@@ -72,11 +95,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       const data = await authAPI.login(email, password);
+      if (!data || !data.access) {
+        throw new Error('Invalid response from server');
+      }
+      
       setCookie('emsi_access', data.access, 14); // 14 days
       setCookie('emsi_refresh', data.refresh, 30); // 30 days
 
       // Fetch user info
       const userData = await authAPI.getMe();
+      if (!userData || !userData.id) {
+        throw new Error('Failed to get user data');
+      }
+      
       const mappedUser: User = {
         id: userData.id.toString(),
         name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.username,
@@ -87,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(mappedUser);
       setIsAuthenticated(true);
+      fetchProfilePicture();
     } catch (error) {
       console.error('Login failed:', error);
       throw new Error('Invalid email or password');
@@ -99,8 +131,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const nameParts = name.split(' ');
       const first_name = nameParts[0] || '';
       const last_name = nameParts.slice(1).join(' ') || '';
-      await authAPI.register({
-        username: email.split('@')[0],
+      
+      // Generate a unique username based on email and timestamp to avoid conflicts in PostgreSQL
+      const timestamp = new Date().getTime().toString().slice(-6);
+      const username = `${email.split('@')[0]}_${timestamp}`;
+      
+      const response = await authAPI.register({
+        username: username,
         email,
         password,
         password2: password,
@@ -108,6 +145,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         last_name,
         role,
       });
+      
+      if (!response) {
+        throw new Error('Registration failed - no response from server');
+      }
+      
+      // Wait a moment for the database to complete the transaction
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await login(email, password);
     } catch (error) {
       console.error('Registration failed:', error);
@@ -136,13 +181,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: updatedUserData.email,
         role: updatedUserData.role,
         avatar: updatedUserData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(updatedUserData.first_name || updatedUserData.email)}&background=random`,
+        profilePicture: user?.profilePicture
       };
       setUser(mappedUser);
-
-      // Optionally, you might want to refetch the user or merge data carefully
-      // For example, if the API only returns a success message:
-      // const currentUser = await authAPI.getMe(); // Refetch user
-      // setUser(currentUser); // Update state
 
     } catch (error) {
       console.error('Profile update failed:', error);
@@ -150,11 +191,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Function to refresh profile picture
+  const refreshProfilePicture = async () => {
+    await fetchProfilePicture();
+  };
+
   // Only render children after auth check to avoid flicker
   if (!checked) return null;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, register, updateProfile }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, register, updateProfile, refreshProfilePicture }}>
       {children}
     </AuthContext.Provider>
   );

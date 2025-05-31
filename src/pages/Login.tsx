@@ -29,9 +29,14 @@ const Login: React.FC = () => {
       await login(email, password);
       toast.success('Logged in successfully');
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      toast.error('Invalid email or password');
+      
+      if (error.message && error.message.includes('connection')) {
+        toast.error('Database connection error. Please try again later.');
+      } else {
+        toast.error('Invalid email or password');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -91,31 +91,6 @@ class ChangePasswordView(views.APIView):
         user.save()
         return Response({'detail': 'Password changed successfully.'})
 
-class ProfilePictureUploadView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
-
-    def post(self, request):
-        user = request.user
-        file = request.FILES.get('avatar')
-        if not file:
-            return Response({'detail': 'No file uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
-        # Delete old avatar if exists
-        if user.avatar:
-            user.avatar.delete(save=False)
-        user.avatar = file
-        user.save()
-        return Response({'avatar': user.avatar.url})
-
-class ProfilePictureDeleteView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        user = request.user
-        if user.avatar:
-            user.avatar.delete(save=True)
-        return Response({'avatar': None})
-
 class ProfilePictureDBUploadView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
@@ -148,3 +123,18 @@ class ProfilePictureDBDeleteView(views.APIView):
         user.profile_picture = None
         user.save()
         return Response({'detail': 'Profile picture deleted.'})
+
+class UserProfilePictureView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, user_id):
+        try:
+            requested_user = User.objects.get(id=user_id)
+            if not requested_user.profile_picture:
+                return Response({'detail': 'No profile picture.'}, status=404)
+            
+            mime = 'image/png'  # Default, could be improved by storing mime type
+            b64 = base64.b64encode(requested_user.profile_picture).decode('utf-8')
+            return Response({'image': f'data:{mime};base64,{b64}'})
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=404)

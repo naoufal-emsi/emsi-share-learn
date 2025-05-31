@@ -7,10 +7,26 @@ def resource_upload_path(instance, filename):
         return f'resources/room_{instance.room.pk}/{filename}'
     return f'resources/general/{filename}'
 
+class ResourceCategory(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    icon = models.CharField(max_length=50, blank=True, null=True)
+    color = models.CharField(max_length=20, default="#3B82F6")
+    order = models.IntegerField(default=0)
+    
+    class Meta:
+        verbose_name_plural = "Resource Categories"
+        ordering = ['order', 'name']
+    
+    def __str__(self):
+        return self.name
+
 class Resource(models.Model):
     RESOURCE_TYPES = (
-        ('pdf', 'PDF Document'),
+        ('document', 'Document'),
         ('video', 'Video'),
+        ('code', 'Code'),
+        ('pdf', 'PDF Document'),
         ('audio', 'Audio'),
         ('image', 'Image'),
         ('doc', 'Word Document'),
@@ -28,6 +44,7 @@ class Resource(models.Model):
     file_type = models.CharField(max_length=100, null=True, blank=True)  # Store MIME type
     external_url = models.URLField(null=True, blank=True)
     type = models.CharField(max_length=10, choices=RESOURCE_TYPES)
+    category = models.ForeignKey(ResourceCategory, on_delete=models.SET_NULL, related_name='resources', null=True, blank=True)
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='resources', null=True, blank=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='uploaded_resources')
     file_size = models.BigIntegerField(null=True, blank=True)

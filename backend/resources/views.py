@@ -3,13 +3,19 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import HttpResponse, Http404
 from django.utils.encoding import smart_str
-from .models import Resource
-from .serializers import ResourceSerializer
+from django.db.models import Q
+from .models import Resource, ResourceCategory
+from .serializers import ResourceSerializer, ResourceCategorySerializer
 from rooms.permissions import IsOwnerOrReadOnly
 from rest_framework.parsers import MultiPartParser, FormParser
 import logging
 
 logger = logging.getLogger(__name__)
+
+class ResourceCategoryViewSet(viewsets.ModelViewSet):
+    queryset = ResourceCategory.objects.all()
+    serializer_class = ResourceCategorySerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 class ResourceViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
@@ -17,10 +23,40 @@ class ResourceViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
+        queryset = Resource.objects.all().order_by('-uploaded_at')
+        
+        # Basic filters
         room_id = self.request.query_params.get('room', None)
+        resource_type = self.request.query_params.get('type', None)
+        category_id = self.request.query_params.get('category', None)
+        search_query = self.request.query_params.get('search', None)
+        
+        # Apply filters
         if room_id:
-            return Resource.objects.filter(room=room_id).order_by('-uploaded_at')
-        return Resource.objects.filter(room__isnull=True).order_by('-uploaded_at')
+            queryset = queryset.filter(room=room_id)
+        else:
+            queryset = queryset.filter(room__isnull=True)
+            
+        if resource_type:
+            if resource_type == 'document':
+                # Group all document types
+                queryset = queryset.filter(
+                    Q(type='document') | Q(type='pdf') | Q(type='doc') | 
+                    Q(type='ppt') | Q(type='excel')
+                )
+            else:
+                queryset = queryset.filter(type=resource_type)
+                
+        if category_id:
+            queryset = queryset.filter(category=category_id)
+            
+        if search_query:
+            queryset = queryset.filter(
+                Q(title__icontains=search_query) | 
+                Q(description__icontains=search_query)
+            )
+            
+        return queryset
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
