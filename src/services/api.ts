@@ -89,7 +89,7 @@ export const roomsAPI = {
   getRooms: async () => {
     return apiRequest('/rooms/');
   },
-  
+
   createRoom: async (roomData: {
     name: string;
     subject: string;
@@ -100,28 +100,33 @@ export const roomsAPI = {
       body: JSON.stringify(roomData),
     });
   },
-  
+
   joinRoom: async (roomId: string) => {
     return apiRequest('/rooms/join/', {
       method: 'POST',
       body: JSON.stringify({ room_id: roomId }),
     });
   },
-  
+
   leaveRoom: async (roomId: string) => {
     return apiRequest(`/rooms/${roomId}/leave/`, {
       method: 'POST',
     });
   },
-  
+
   getRoomDetails: async (roomId: string) => {
     return apiRequest(`/rooms/${roomId}/`);
   },
-  
+
   deleteRoom: async (roomId: string) => {
     return apiRequest(`/rooms/${roomId}/`, {
       method: 'DELETE',
     });
+  },
+
+  // New function to get students for a teacher
+  getTeacherStudents: async (teacherId: string) => {
+    return apiRequest(`/rooms/teacher-students/?teacher_id=${teacherId}`);
   },
 };
 

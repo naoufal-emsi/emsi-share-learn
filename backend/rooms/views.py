@@ -3,11 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Room, RoomParticipant
 from .serializers import RoomSerializer, RoomDetailSerializer, JoinRoomSerializer
-from .permissions import IsOwnerOrReadOnly
+from .permissions import IsOwnerOrReadOnly , IsAdminOrTargetTeacher
+from django.contrib.auth import get_user_model
 
 class RoomViewSet(viewsets.ModelViewSet):
     serializer_class = RoomSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly, IsAdminOrTargetTeacher]
 
     def get_queryset(self):
         user = self.request.user
@@ -64,3 +65,38 @@ class RoomViewSet(viewsets.ModelViewSet):
         except RoomParticipant.DoesNotExist:
             return Response({"error": "You are not a participant in this room"}, 
                            status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'], url_path='teacher-students')
+    def teacher_students(self, request):
+        User = get_user_model()
+        
+        # Get teacher_id from query params
+        teacher_id = request.query_params.get('teacher_id')
+        
+        # Validate teacher_id
+        if not teacher_id:
+            return Response(
+                {"error": "teacher_id parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Verify the teacher exists
+            teacher = User.objects.get(id=teacher_id, role='teacher')
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Teacher not found or not a teacher"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get all students in teacher's rooms
+        students = User.objects.filter(
+        roomparticipant__room__owner=teacher,
+        roomparticipant__role='student'  # Now correctly referencing RoomParticipant's role
+    ).distinct()
+        
+        # Serialize the results
+        from users.serializers import UserSerializer  # Import your UserSerializer
+        serializer = UserSerializer(students, many=True)
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
