@@ -48,6 +48,17 @@ const StudentRooms: React.FC = () => {
     window.location.reload();
   };
 
+  const handleLeaveRoom = async (roomId: string) => {
+    try {
+      await roomsAPI.leaveRoom(roomId);
+      toast.success('Successfully left the room.');
+      setRooms(prevRooms => prevRooms.filter(room => room.id !== roomId));
+    } catch (error) {
+      console.error('Failed to leave room:', error);
+      toast.error('Failed to leave room.');
+    }
+  };
+
   const filteredRooms = rooms.filter(room =>
     room.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     room.subject.toLowerCase().includes(searchTerm.toLowerCase())
@@ -125,11 +136,16 @@ const StudentRooms: React.FC = () => {
                       <span>{room.quizzes_count} Quizzes</span>
                     </div>
                   </div>
-                  <Link to={`/rooms/${room.id}`}>
-                    <Button className="w-full">
-                      Enter Room
+                  <div className="flex gap-2">
+                    <Link to={`/rooms/${room.id}`} className="flex-grow">
+                      <Button className="w-full">
+                        Enter Room
+                      </Button>
+                    </Link>
+                    <Button variant="outline" onClick={() => handleLeaveRoom(room.id)}>
+                      Leave Room
                     </Button>
-                  </Link>
+                  </div>
                 </CardContent>
               </Card>
             ))}

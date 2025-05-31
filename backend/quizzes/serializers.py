@@ -44,8 +44,8 @@ class QuizSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Quiz
-        fields = ['id', 'title', 'description', 'room', 'created_by', 'created_at', 
-                 'is_public', 'questions_count', 'resources_count', 'questions']  # Include 'questions'
+        fields = ['id', 'title', 'description', 'room', 'created_by', 'created_at',
+                 'is_public', 'questions_count', 'resources_count', 'questions', 'is_active']  # Add 'is_active' here
         read_only_fields = ['id', 'created_by', 'created_at']
     
     def get_questions_count(self, obj):
@@ -87,7 +87,7 @@ class QuizSubmitSerializer(serializers.Serializer):
 class QuizResultSerializer(serializers.ModelSerializer):
     questions_total = serializers.SerializerMethodField()
     questions_correct = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = QuizAttempt
         fields = ['id', 'quiz', 'student', 'start_time', 'end_time', 
@@ -98,3 +98,20 @@ class QuizResultSerializer(serializers.ModelSerializer):
     
     def get_questions_correct(self, obj):
         return obj.answers.filter(is_correct=True).count()
+
+class AnswerSerializer(serializers.ModelSerializer):
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    selected_option_text = serializers.CharField(source='selected_option.text', read_only=True)
+
+    class Meta:
+        model = Answer
+        fields = ['id', 'question', 'question_text', 'selected_option', 'selected_option_text', 'is_correct']
+
+class QuizAttemptDetailSerializer(serializers.ModelSerializer):
+    student_username = serializers.CharField(source='student.username', read_only=True)
+    quiz_title = serializers.CharField(source='quiz.title', read_only=True)
+    answers = AnswerSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = QuizAttempt
+        fields = ['id', 'quiz', 'quiz_title', 'student', 'student_username', 'start_time', 'end_time', 'score', 'status', 'answers']

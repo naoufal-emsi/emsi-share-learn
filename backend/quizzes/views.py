@@ -7,7 +7,8 @@ from django.http import FileResponse, Http404
 from .models import Quiz, Question, Option, QuizAttempt, Answer, QuizResource
 from .serializers import (
     QuizSerializer, QuizDetailSerializer, QuestionSerializer, 
-    QuizSubmitSerializer, QuizResultSerializer, QuizResourceSerializer
+    QuizSubmitSerializer, QuizResultSerializer, QuizResourceSerializer,
+    QuizAttemptDetailSerializer # Add this line
 )
 from rooms.permissions import IsOwnerOrReadOnly
 
@@ -17,18 +18,38 @@ class QuizViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        if self.action == 'list':
-            room_id = self.request.query_params.get('room', None)
-            is_public = self.request.query_params.get('public', None)
-            
-            if is_public == 'true':
-                return Quiz.objects.filter(is_public=True, room__isnull=True).order_by('created_at')
-            elif room_id:
-                return Quiz.objects.filter(room_id=room_id).order_by('created_at')
-            else:
-                return Quiz.objects.none()
-        # For other actions (retrieve, update, etc.), return all quizzes
-        return Quiz.objects.all()
+        user = self.request.user
+        room_id = self.request.query_params.get('room', None)
+        is_public = self.request.query_params.get('public', None)
+
+        # Base queryset
+        queryset = Quiz.objects.all().order_by('created_at')
+
+        # Filter by room or public status
+        if is_public == 'true':
+            queryset = queryset.filter(is_public=True, room__isnull=True)
+        elif room_id:
+            queryset = queryset.filter(room_id=room_id)
+        else:
+            # If no specific filter, return nothing for non-teachers
+            # or all for teachers (handled below)
+            queryset = Quiz.objects.none()
+
+        # Only return active quizzes to non-teachers
+        if user.is_authenticated and user.role != 'teacher':
+            queryset = queryset.filter(is_active=True)
+
+        # For teachers, return all quizzes in their rooms
+        if user.is_authenticated and user.role == 'teacher' and self.action == 'list':
+             teacher_owned_rooms = user.owned_rooms.all()
+             queryset = Quiz.objects.filter(room__in=teacher_owned_rooms).order_by('created_at')
+
+        # For other actions (retrieve, update, etc.), return all quizzes regardless of active status
+        # This allows teachers to manage inactive quizzes
+        if self.action not in ['list']:
+             queryset = Quiz.objects.all()
+
+        return queryset
     
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -125,6 +146,57 @@ class QuizViewSet(viewsets.ModelViewSet):
                 raise Http404("File not found")
         except QuizResource.DoesNotExist:
             raise Http404("Resource not found")
+
+    @action(detail=False, methods=['get'], url_path='teacher-rooms-quizzes')
+    def get_teacher_rooms_quizzes(self, request):
+        user = request.user
+        # Check if the user is authenticated and has the 'teacher' role
+        if not user.is_authenticated or user.role != 'teacher':
+            return Response({"detail": "Authentication credentials were not provided or you are not a teacher."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get rooms where the current user is the owner (teacher)
+        teacher_owned_rooms = user.owned_rooms.all()
+
+        # Get quizzes associated with these rooms (teachers see all quizzes in their rooms)
+        quizzes = Quiz.objects.filter(room__in=teacher_owned_rooms).order_by('created_at')
+
+        serializer = self.get_serializer(quizzes, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='teacher-all-student-answers')
+    def get_teacher_all_student_answers(self, request):
+        user = request.user
+        if not user.is_authenticated or user.role != 'teacher':
+            return Response(
+                {"detail": "Authentication credentials were not provided or you are not a teacher."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Get all rooms owned by the teacher
+        teacher_owned_rooms = user.owned_rooms.all()
+
+        # Get all quizzes associated with these rooms
+        quizzes_in_teacher_rooms = Quiz.objects.filter(room__in=teacher_owned_rooms)
+
+        # Get all quiz attempts for these quizzes
+        all_attempts = QuizAttempt.objects.filter(quiz__in=quizzes_in_teacher_rooms).order_by('quiz__title', 'student__username', 'start_time')
+
+        serializer = QuizAttemptDetailSerializer(all_attempts, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='toggle_active')
+    def toggle_active_status(self, request, pk=None):
+        quiz = self.get_object()
+        # Ensure only the creator can toggle the status
+        if quiz.created_by != request.user:
+            return Response(
+                {"detail": "You do not have permission to perform this action."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        quiz.is_active = not quiz.is_active
+        quiz.save()
+        serializer = self.get_serializer(quiz)
+        return Response(serializer.data)
 
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer

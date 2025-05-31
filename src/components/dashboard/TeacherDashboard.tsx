@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useFetcher } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,10 +16,100 @@ import {
   FileCheck,
   CalendarDays
 } from 'lucide-react';
-import {roomsAPI} from '@/services/api';
+import {roomsAPI, resourcesAPI, quizzesAPI} from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext'; // Assuming your hook is named useAuth
 
 const TeacherDashboard: React.FC = () => {
-  
+  const [students, setStudents] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [resources, setResources] = useState([]); // Add state for resources
+  const [quizzes, setQuizzes] = useState([]); // Add state for quizzes
+  const [allStudentAnswers, setAllStudentAnswers] = useState([]); // New state for all student answers
+  const [averageScore, setAverageScore] = useState<number | null>(null); // New state for average score
+  const [averageStudentsPerRoom, setAverageStudentsPerRoom] = useState<number | null>(null);
+  const { user } = useAuth(); // Get user from auth context
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      // Check if user and user.id exist before fetching
+      if (user && user.id) {
+        try {
+          const response = await roomsAPI.getTeacherStudents(user.id); // Use user.id here
+          // Assuming the response is the array of students directly
+          setStudents(response || []); 
+        } catch (error) {
+          console.error('Error fetching teacher students:', error); 
+        }
+      }
+    };
+
+    fetchStudents();
+  }, [user]); // Add user to dependency array so it refetches when user data is available
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const response = await roomsAPI.getRooms();
+        setRooms(response || []); // Set rooms state with the response, default to empty array if null
+      } catch (error) {
+        console.error('Error fetching rooms:', error);
+      }
+    };
+
+    const fetchResources = async () => {
+      try {
+        const response = await resourcesAPI.getAllResources();
+        setResources(response.results || []); // Set resources state
+      } catch (error) {
+        console.error('Error fetching all resources:', error);
+      }
+    };
+
+    const fetchQuizzes = async () => {
+      try {
+        const response = await quizzesAPI.getTeacherRoomsQuizzes();
+        // Handle the response directly since it doesn't have a results property
+        setQuizzes(Array.isArray(response) ? response : []);
+        console.log("Quizzes response:", response);
+      } catch (error) {
+        console.error('Error fetching quizzes:', error);
+      }
+    };
+
+    const fetchAllStudentAnswers = async () => { // New function to fetch all student answers
+      try {
+        const response = await quizzesAPI.getTeacherAllStudentAnswers();
+        setAllStudentAnswers(Array.isArray(response) ? response : []);
+        console.log("All student answers response:", response);
+      } catch (error) {
+        console.error('Error fetching all student answers:', error);
+      }
+    };
+    
+
+    fetchRooms();
+    fetchResources();
+    fetchQuizzes();
+    fetchAllStudentAnswers(); // Call the new function
+  }, []);
+
+  useEffect(() => {
+    // Calculate average score whenever allStudentAnswers changes
+    if (allStudentAnswers.length > 0) {
+      const totalScore = allStudentAnswers.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
+      const avg = totalScore / allStudentAnswers.length;
+      setAverageScore(avg);
+    } else {
+      setAverageScore(0);
+    }
+
+    if (rooms && rooms.length > 0) {
+      const totalParticipants = rooms.reduce((sum, room) => sum + (room.participants ? room.participants.length : 0), 0);
+      setAverageStudentsPerRoom(totalParticipants / rooms.length);
+    }
+
+  }, [allStudentAnswers, rooms]); // Recalculate when allStudentAnswers changes
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {/* Class Overview */}
@@ -31,16 +121,16 @@ const TeacherDashboard: React.FC = () => {
         <CardContent>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Active Students</span>
-              <span className="text-sm font-medium">126</span>
+              <span className="text-sm font-medium">Total Students</span>
+              <span className="text-sm font-medium">{students.length}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Classes</span>
-              <span className="text-sm font-medium">4</span>
+              <span className="text-sm font-medium">Rooms</span>
+              <span className="text-sm font-medium">{rooms?.length || 0}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Average Engagement</span>
-              <span className="text-sm font-medium">78%</span>
+              <span className="text-sm font-medium">Average Students per Room</span>
+              <span className="text-sm font-medium">{averageStudentsPerRoom !== null ? averageStudentsPerRoom.toFixed(2) : 'N/A'}</span>
             </div>
           </div>
         </CardContent>
@@ -56,16 +146,21 @@ const TeacherDashboard: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Published Resources</span>
-              <span className="text-sm font-medium">32</span>
+              <span className="text-sm font-medium">{resources.length}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Resources to Review</span>
-              <Badge variant="destructive">5</Badge>
+              <span className="text-sm font-medium">Private Resources</span>
+              <span className="text-sm font-medium">{resources.filter(resource => resource.room).length}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Most Popular</span>
-              <span className="text-sm text-muted-foreground">Database Design</span>
+              <span className="text-sm text-muted-foreground">
+                {resources.length > 0 && resources.some(r => r.download_count !== undefined)
+                  ? resources.sort((a, b) => (b.download_count || 0) - (a.download_count || 0))[0].title
+                  : 'N/A'}
+              </span>
             </div>
+
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
@@ -88,16 +183,16 @@ const TeacherDashboard: React.FC = () => {
         <CardContent>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Active Quizzes</span>
-              <span className="text-sm font-medium">3</span>
+              <span className="text-sm font-medium">Total Quizzes</span>
+              <span className="text-sm font-medium">{quizzes.length}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Completed Quizzes</span>
-              <span className="text-sm font-medium">14</span>
+              <span className="text-sm font-medium">Active Quizzes</span>
+              <span className="text-sm font-medium">{quizzes.filter(quiz => quiz.is_active).length}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Average Score</span>
-              <span className="text-sm font-medium">72%</span>
+              <span className="text-sm font-medium">{averageScore !== null ? `${averageScore.toFixed(2)}%` : 'N/A'}</span> {/* Display calculated average */}
             </div>
           </div>
         </CardContent>

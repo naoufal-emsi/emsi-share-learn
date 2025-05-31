@@ -8,9 +8,11 @@ import ResourceCard from '@/components/resources/ResourceCard';
 import ResourceUploadDialog from '@/components/resources/ResourceUploadDialog';
 import ResourceDetailDialog from '@/components/resources/ResourceDetailDialog';
 import ResourceSearchFilters, { ResourceFilters } from '@/components/resources/ResourceSearchFilters';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Resource {
-  id: number;
+  id: string;
   title: string;
   description: string;
   type: string;
@@ -19,7 +21,7 @@ interface Resource {
   download_count: number;
   uploaded_at: string;
   uploaded_by: {
-    id: number;
+    id: string;
     username: string;
     first_name: string;
     last_name: string;
@@ -40,6 +42,8 @@ const Resources: React.FC = () => {
   });
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchResources = async () => {
     setLoading(true);
@@ -89,6 +93,24 @@ const Resources: React.FC = () => {
     setIsDetailDialogOpen(true);
   };
 
+  const handleDeleteResource = async (resourceId: string) => {
+    try {
+      await resourcesAPI.deleteResource(resourceId);
+      setResources(prev => prev.filter(resource => resource.id !== resourceId));
+      toast({
+        title: "Success",
+        description: "Resource deleted successfully",
+      });
+    } catch (error) {
+      console.error('Failed to delete resource:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete resource",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -121,7 +143,7 @@ const Resources: React.FC = () => {
           </TabsList>
           
           <TabsContent value="all" className="mt-0">
-            {renderResourceList(resources, loading, handleResourceClick)}
+            {renderResourceList(resources, loading, handleResourceClick, handleDeleteResource, user?.id)}
           </TabsContent>
           
           <TabsContent value="document" className="mt-0">
@@ -134,16 +156,18 @@ const Resources: React.FC = () => {
                 r.type === 'excel'
               ), 
               loading,
-              handleResourceClick
+              handleResourceClick,
+              handleDeleteResource,
+              user?.id
             )}
           </TabsContent>
           
           <TabsContent value="video" className="mt-0">
-            {renderResourceList(resources.filter(r => r.type === 'video'), loading, handleResourceClick)}
+            {renderResourceList(resources.filter(r => r.type === 'video'), loading, handleResourceClick, handleDeleteResource, user?.id)}
           </TabsContent>
           
           <TabsContent value="code" className="mt-0">
-            {renderResourceList(resources.filter(r => r.type === 'code'), loading, handleResourceClick)}
+            {renderResourceList(resources.filter(r => r.type === 'code'), loading, handleResourceClick, handleDeleteResource, user?.id)}
           </TabsContent>
           
           <TabsContent value="other" className="mt-0">
@@ -158,7 +182,9 @@ const Resources: React.FC = () => {
                 r.type !== 'code'
               ), 
               loading,
-              handleResourceClick
+              handleResourceClick,
+              handleDeleteResource,
+              user?.id
             )}
           </TabsContent>
         </Tabs>
@@ -180,9 +206,11 @@ const Resources: React.FC = () => {
 };
 
 const renderResourceList = (
-  resources: Resource[], 
+  resources: Resource[],
   loading: boolean,
-  onResourceClick: (resource: Resource) => void
+  onResourceClick: (resource: Resource) => void,
+  onDeleteResource: (resourceId: string) => void,
+  currentUserId?: string
 ) => {
   if (loading) {
     return <div className="text-center py-8">Loading resources...</div>;
@@ -198,13 +226,17 @@ const renderResourceList = (
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {resources.map(resource => (
-        <ResourceCard 
-          key={resource.id} 
-          resource={resource} 
-          onClick={onResourceClick}
-        />
-      ))}
+      {resources.map(resource => {
+        return (
+          <ResourceCard
+            key={resource.id}
+            resource={resource}
+            onClick={() => onResourceClick(resource)}
+            onDelete={() => onDeleteResource(resource.id)}
+            showDeleteButton={resource.uploaded_by.id.toString() === currentUserId}
+          />
+        );
+      })}
     </div>
   );
 };

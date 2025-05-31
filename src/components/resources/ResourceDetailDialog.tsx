@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 
 interface ResourceDetailDialogProps {
   resource: {
-    id: number;
+    id: string;
     title: string;
     description: string;
     type: string;
@@ -18,7 +18,7 @@ interface ResourceDetailDialogProps {
     download_count: number;
     uploaded_at: string;
     uploaded_by: {
-      id: number;
+      id: string;
       username: string;
       first_name: string;
       last_name: string;

@@ -186,7 +186,10 @@ export const authAPI = {
 // Rooms API
 export const roomsAPI = {
   getRooms: async () => {
-    return apiRequest('/rooms/');
+    return apiRequest('/rooms/',{
+      method: 'GET',
+      }
+    );
   },
 
   createRoom: async (roomData: {
@@ -231,7 +234,7 @@ export const roomsAPI = {
 
 // Resources API
 export const resourcesAPI = {
-  getResources: async (params?: { 
+  getResources: async (params?: {
     roomId?: string;
     type?: string;
     category?: string;
@@ -259,7 +262,15 @@ export const resourcesAPI = {
       count: response?.count || 0
     };
   },
-  
+
+  getAllResources: async () => {
+    const response = await apiRequest('/resources/all/');
+    return {
+      results: Array.isArray(response) ? response : response?.results || [],
+      count: response?.count || 0
+    };
+  },
+
   getCategories: async () => {
     try {
       const response = await apiRequest('/resource-categories/');
@@ -273,7 +284,7 @@ export const resourcesAPI = {
       return { results: [], count: 0 };
     }
   },
-  
+
   uploadResource: async (formData: FormData) => {
     const token = getAuthToken();
     
@@ -300,7 +311,7 @@ export const resourcesAPI = {
     
     return response.json();
   },
-  
+
   downloadResource: async (resourceId: string) => {
     const token = getAuthToken();
     const response = await fetch(`${API_BASE_URL}/resources/${resourceId}/download/`, {
@@ -314,6 +325,16 @@ export const resourcesAPI = {
     }
 
     return response.blob();
+  },
+
+  deleteResource: async (resourceId: string, roomId?: string) => {
+    let url = `/resources/${resourceId}/`;
+    if (roomId) {
+      url += `?room=${roomId}`;
+    }
+    return apiRequest(url, {
+      method: 'DELETE',
+    });
   },
 };
 
@@ -461,6 +482,27 @@ export const quizzesAPI = {
     }
     
     return response.blob();
+  },
+  
+  getTeacherRoomsQuizzes: async () => {
+    return apiRequest('/quizzes/teacher-rooms-quizzes/');
+  },
+
+  updateQuiz: async (quizId: string, data: any) => {
+    return apiRequest(`/quizzes/${quizId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+  },
+
+  toggleQuizActiveStatus: async (quizId: string) => {
+    return apiRequest(`/quizzes/${quizId}/toggle_active/`, {
+        method: 'POST',
+    });
+  },
+
+  getTeacherAllStudentAnswers: async () => {
+    return apiRequest('/quizzes/teacher-all-student-answers/');
   },
 };
 

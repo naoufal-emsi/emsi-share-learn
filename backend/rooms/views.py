@@ -3,12 +3,20 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Room, RoomParticipant
 from .serializers import RoomSerializer, RoomDetailSerializer, JoinRoomSerializer
-from .permissions import IsOwnerOrReadOnly , IsAdminOrTargetTeacher
+from .permissions import IsOwnerOrReadOnly , IsAdminOrTargetTeacher, IsAuthenticatedAndTeacher
 from django.contrib.auth import get_user_model
 
 class RoomViewSet(viewsets.ModelViewSet):
     serializer_class = RoomSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly, IsAdminOrTargetTeacher]
+    # Modify permission_classes to allow teachers to create rooms
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.IsAuthenticated(), IsAuthenticatedAndTeacher()]
+        elif self.action in ['retrieve', 'list', 'join_room', 'leave_room']:
+            return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
+        elif self.action == 'teacher_students':
+            return [permissions.IsAuthenticated(), IsAdminOrTargetTeacher()]
+        return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user

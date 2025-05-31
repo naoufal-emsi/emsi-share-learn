@@ -35,6 +35,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
         if room_id:
             queryset = queryset.filter(room=room_id)
         else:
+            # This is the default behavior for resources not in a room
             queryset = queryset.filter(room__isnull=True)
             
         if resource_type:
@@ -57,6 +58,13 @@ class ResourceViewSet(viewsets.ModelViewSet):
             )
             
         return queryset
+    
+    @action(detail=False, methods=['get'], url_path='all')
+    def all_resources(self, request): # 'request' is intentionally kept for DRF action signature
+        # This action should return ALL resources, regardless of room association
+        queryset = Resource.objects.all().order_by('-uploaded_at')
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -104,3 +112,4 @@ class ResourceViewSet(viewsets.ModelViewSet):
                 )
         except Resource.DoesNotExist:
             raise Http404("Resource not found")
+            

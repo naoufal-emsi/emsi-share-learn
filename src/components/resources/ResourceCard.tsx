@@ -2,13 +2,13 @@ import React from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, Video, Code, File } from 'lucide-react';
+import { Download, FileText, Video, Code, File, Trash2 } from 'lucide-react';
 import { resourcesAPI } from '@/services/api';
 import { toast } from 'sonner';
 
 interface ResourceCardProps {
   resource: {
-    id: number;
+    id: string;
     title: string;
     description: string;
     type: string;
@@ -17,7 +17,7 @@ interface ResourceCardProps {
     download_count: number;
     uploaded_at: string;
     uploaded_by: {
-      id: number;
+      id: string;
       username: string;
       first_name: string;
       last_name: string;
@@ -26,9 +26,11 @@ interface ResourceCardProps {
     category_name: string | null;
   };
   onClick?: (resource: ResourceCardProps['resource']) => void;
+  onDelete?: () => void; // Add this line
+  showDeleteButton?: boolean; // Add this line
 }
 
-const ResourceCard: React.FC<ResourceCardProps> = ({ resource, onClick }) => {
+const ResourceCard: React.FC<ResourceCardProps> = ({ resource, onClick, onDelete, showDeleteButton }) => {
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering card click
     try {
@@ -118,6 +120,15 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, onClick }) => {
           <Download className="h-4 w-4 mr-1" />
           Download ({resource.download_count})
         </Button>
+        {showDeleteButton && onDelete && (
+          <Button variant="destructive" size="sm" onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }} className="ml-2">
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

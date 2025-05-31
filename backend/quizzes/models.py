@@ -19,7 +19,7 @@ class Quiz(models.Model):
     time_limit = models.IntegerField(null=True, blank=True, help_text='Time limit in minutes')
     max_attempts = models.IntegerField(default=1)
     passing_score = models.FloatField(default=60.0)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
