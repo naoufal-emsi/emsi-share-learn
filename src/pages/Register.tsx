@@ -33,15 +33,32 @@ const Register: React.FC = () => {
       return;
     }
     
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    // Validate password strength
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
       await register(name, email, password, role);
       toast.success('Account created successfully');
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      toast.error('Failed to create account');
+      if (error.message && error.message.includes('duplicate key')) {
+        toast.error('Email already exists. Please use a different email.');
+      } else {
+        toast.error('Failed to create account. Please try again later.');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -16,6 +16,7 @@ import Resources from "./pages/Resources";
 import Quiz from "./pages/Quiz";
 import Forum from "./pages/Forum";
 import Events from "./pages/Events";
+import EventDetails from "./pages/EventDetails";
 import Analytics from "./pages/Analytics";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
@@ -24,6 +25,7 @@ import Rooms from "./pages/Rooms";
 import StudentRooms from "./pages/StudentRooms";
 import RoomDetails from "./pages/RoomDetails";
 import Profile from "./pages/Profile";
+import Notifications from "./pages/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -44,7 +46,9 @@ const App = () => (
               <Route path="/quiz" element={<Quiz />} />
               <Route path="/quiz/:quizId" element={<Quiz />} />
               <Route path="/forum" element={<Forum />} />
+              <Route path="/forum/:topicId" element={<Forum />} />
               <Route path="/events" element={<Events />} />
+              <Route path="/events/:eventId" element={<EventDetails />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/users" element={<Users />} />
               <Route path="/settings" element={<Settings />} />
@@ -52,6 +56,7 @@ const App = () => (
               <Route path="/student-rooms" element={<StudentRooms />} />
               <Route path="/rooms/:roomId" element={<RoomDetails />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/notifications" element={<Notifications />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

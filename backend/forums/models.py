@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.conf import settings
 from rooms.models import Room
@@ -41,6 +40,12 @@ class ForumTopic(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     last_activity = models.DateTimeField(auto_now=True)
     
+    # Attachment fields
+    attachment_data = models.BinaryField(null=True, blank=True)
+    attachment_name = models.CharField(max_length=255, null=True, blank=True)
+    attachment_type = models.CharField(max_length=100, null=True, blank=True)
+    attachment_size = models.IntegerField(null=True, blank=True)
+    
     class Meta:
         ordering = ['-is_announcement', '-last_activity']
     
@@ -57,6 +62,12 @@ class ForumPost(models.Model):
     edit_reason = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Attachment fields
+    attachment_data = models.BinaryField(null=True, blank=True)
+    attachment_name = models.CharField(max_length=255, null=True, blank=True)
+    attachment_type = models.CharField(max_length=100, null=True, blank=True)
+    attachment_size = models.IntegerField(null=True, blank=True)
     
     class Meta:
         ordering = ['created_at']

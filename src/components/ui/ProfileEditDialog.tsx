@@ -4,63 +4,45 @@ import { Button } from "./button";
 import { Label } from "./label";
 import { Avatar, AvatarImage, AvatarFallback } from "./avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 const DEFAULT_AVATAR = "/placeholder.svg";
 
 const ProfileForm: React.FC = () => {
-  const { user, updateProfile } = useAuth();
-  const { toast } = useToast();
+  const { user, updateProfile, refreshProfilePicture } = useAuth();
   const [firstName, setFirstName] = useState(user?.name.split(" ")[0] || "");
   const [lastName, setLastName] = useState(user?.name.split(" ").slice(1).join(" ") || "");
-  const [avatar, setAvatar] = useState(user?.avatar || "");
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load profile picture from DB (base64)
-  React.useEffect(() => {
-    async function fetchProfilePicture() {
-      const token = document.cookie.split('; ').find(row => row.startsWith('emsi_access='))?.split('=')[1];
-      const res = await fetch('http://127.0.0.1:8000/api/auth/profile/picture', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.image) setAvatar(data.image);
-      } else {
-        setAvatar("");
-      }
-    }
-    fetchProfilePicture();
-  }, []);
-
   // Upload avatar handler (to DB)
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
       const formData = new FormData();
-      formData.append('avatar', e.target.files[0]);
+      formData.append('avatar', file);
       setLoading(true);
+      
       try {
         const token = document.cookie.split('; ').find(row => row.startsWith('emsi_access='))?.split('=')[1];
-        const res = await fetch('http://127.0.0.1:8000/api/auth/profile/upload-picture', {
+        
+        // Upload to database endpoint
+        const res = await fetch('http://127.0.0.1:8000/api/auth/profile/picture/upload/', {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
         });
+        
         if (!res.ok) throw new Error('Upload failed');
-        // Immediately fetch and preview the new image
-        const getRes = await fetch('http://127.0.0.1:8000/api/auth/profile/picture', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (getRes.ok) {
-          const data = await getRes.json();
-          setAvatar(data.image);
-        }
-        toast({ title: 'Profile picture updated!' });
+        
+        // Refresh the profile picture in the context
+        await refreshProfilePicture();
+        toast.success('Profile picture updated!');
       } catch (err) {
-        toast({ title: 'Upload failed', variant: 'destructive' });
+        toast.error('Upload failed');
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -70,7 +52,7 @@ const ProfileForm: React.FC = () => {
   // Change password handler
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) return toast({ title: 'Enter a new password', variant: 'destructive' });
+    if (!password) return toast.error('Enter a new password');
     setPasswordLoading(true);
     try {
       const token = document.cookie.split('; ').find(row => row.startsWith('emsi_access='))?.split('=')[1];
@@ -80,10 +62,10 @@ const ProfileForm: React.FC = () => {
         body: JSON.stringify({ new_password: password }),
       });
       if (!res.ok) throw new Error('Password change failed');
-      toast({ title: 'Password changed!' });
+      toast.success('Password changed!');
       setPassword("");
     } catch (err) {
-      toast({ title: 'Password change failed', variant: 'destructive' });
+      toast.error('Password change failed');
     } finally {
       setPasswordLoading(false);
     }
@@ -95,9 +77,9 @@ const ProfileForm: React.FC = () => {
     setLoading(true);
     try {
       await updateProfile({ first_name: firstName, last_name: lastName });
-      toast({ title: "Profile updated!", description: "Your profile has been updated successfully." });
+      toast.success("Profile updated!");
     } catch (err) {
-      toast({ title: "Update failed", description: (err as Error).message, variant: "destructive" });
+      toast.error("Update failed: " + (err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -111,7 +93,7 @@ const ProfileForm: React.FC = () => {
     >
       <div className="flex flex-col items-center gap-2">
         <Avatar className="h-24 w-24 border-2 border-primary dark:border-accent bg-gray-100 dark:bg-gray-800">
-          <AvatarImage src={avatar || DEFAULT_AVATAR} alt={firstName} className="object-cover" />
+          <AvatarImage src={user?.profilePicture || user?.avatar || DEFAULT_AVATAR} alt={firstName} className="object-cover" />
           <AvatarFallback className="bg-accent text-white text-3xl dark:bg-gray-700">{firstName.charAt(0)}</AvatarFallback>
         </Avatar>
         <div className="flex gap-2 mt-2">
