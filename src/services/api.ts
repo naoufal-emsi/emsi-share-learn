@@ -262,6 +262,24 @@ export const resourcesAPI = {
       count: response?.count || 0
     };
   },
+  
+  // Chunked upload functions for large resources
+  // NOTE: These endpoints don't exist in the backend yet
+  // They are kept here for future implementation
+  createResourceUploadSession: async (metadata: any) => {
+    console.warn('createResourceUploadSession endpoint not implemented in backend');
+    throw new Error('Upload session endpoint not implemented');
+  },
+
+  uploadResourceChunk: async (sessionId: string, data: any) => {
+    console.warn('uploadResourceChunk endpoint not implemented in backend');
+    throw new Error('Upload chunk endpoint not implemented');
+  },
+
+  finalizeResourceUpload: async (sessionId: string) => {
+    console.warn('finalizeResourceUpload endpoint not implemented in backend');
+    throw new Error('Finalize upload endpoint not implemented');
+  },
 
   getAllResources: async () => {
     const response = await apiRequest('/resources/all/');
@@ -292,6 +310,26 @@ export const resourcesAPI = {
     console.log('FormData contents:');
     for (let [key, value] of formData.entries()) {
       console.log(`${key}:`, value);
+    }
+    
+    // Map resource types to valid backend types
+    const typeMap: Record<string, string> = {
+      'archive': 'document', // Map 'archive' to 'document' which is valid in backend
+      'code': 'code',
+      'document': 'document',
+      'video': 'video',
+      'other': 'other'
+    };
+    
+    // Check if the file is a ZIP file and map the type correctly
+    const fileData = formData.get('file_data');
+    const currentType = formData.get('type') as string;
+    
+    if (currentType && typeMap[currentType]) {
+      formData.set('type', typeMap[currentType]);
+    } else if (fileData instanceof File && fileData.name.toLowerCase().endsWith('.zip')) {
+      // Default to document type for ZIP files
+      formData.set('type', 'document');
     }
     
     const response = await fetch(`${API_BASE_URL}/resources/`, {
@@ -906,5 +944,37 @@ export const notificationsAPI = {
       console.error('Error marking all notifications as read:', error);
       throw error;
     }
+  }
+};
+
+
+// Chunked upload API functions
+export const uploadAPI = {
+  createUploadSession: async (eventId: string, metadata: {
+    filename: string;
+    filesize: number;
+    filetype: string;
+    chunks: number;
+  }) => {
+    return apiRequest(`/events/${eventId}/upload-session/`, {
+      method: 'POST',
+      body: JSON.stringify(metadata),
+    });
+  },
+
+  uploadChunk: async (sessionId: string, data: {
+    chunk: string;
+    chunkNumber: number;
+  }) => {
+    return apiRequest(`/upload-sessions/${sessionId}/chunk/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  finalizeUpload: async (sessionId: string) => {
+    return apiRequest(`/upload-sessions/${sessionId}/finalize/`, {
+      method: 'POST',
+    });
   }
 };

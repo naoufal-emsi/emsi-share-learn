@@ -71,3 +71,16 @@ class EventAttendee(models.Model):
         
     def __str__(self):
         return f"{self.user.username} - {self.event.title} ({self.status})"
+
+# Add to backend/events/models.py
+class ChunkUploadSession(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='upload_sessions')
+    filename = models.CharField(max_length=255)
+    filesize = models.BigIntegerField()
+    filetype = models.CharField(max_length=100)
+    total_chunks = models.IntegerField()
+    uploaded_chunks = models.IntegerField(default=0)
+    is_complete = models.BooleanField(default=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

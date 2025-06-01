@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { resourcesAPI } from '@/services/api';
+import { uploadAPI } from '@/services/api';
 import { toast } from 'sonner';
-import { Upload, X, Search } from 'lucide-react';
+import { Upload, X, Search, Loader2, Archive } from 'lucide-react';
 
 interface ResourceUploadDialogProps {
   open: boolean;
@@ -25,6 +26,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [resourceType, setResourceType] = useState<string>('');
@@ -61,21 +63,43 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
+      
+      // Check file size
+      const fileSizeMB = selectedFile.size / (1024 * 1024);
+      if (fileSizeMB > 100) {
+        toast.error('File size exceeds 100MB limit');
+        return;
+      }
+      
       setFile(selectedFile);
       
-      // Auto-detect resource type based on file type
-      const fileType = selectedFile.type.toLowerCase();
-      if (fileType.includes('pdf') || fileType.includes('word') || fileType.includes('document') || 
-          fileType.includes('powerpoint') || fileType.includes('excel') || fileType.includes('spreadsheet')) {
-        setResourceType('document');
-      } else if (fileType.includes('video')) {
-        setResourceType('video');
-      } else if (fileType.includes('text/plain') || fileType.includes('application/json') || 
-                fileType.includes('text/html') || fileType.includes('text/css') || 
-                fileType.includes('application/javascript')) {
-        setResourceType('code');
-      } else {
-        setResourceType('other');
+      // Only auto-detect resource type if user hasn't explicitly selected one
+      if (!resourceType) {
+        // Auto-detect resource type based on file type
+        const fileType = selectedFile.type.toLowerCase();
+        const fileName = selectedFile.name.toLowerCase();
+        
+        if (fileType.includes('pdf') || fileType.includes('word') || fileType.includes('document') || 
+            fileType.includes('powerpoint') || fileType.includes('excel') || fileType.includes('spreadsheet')) {
+          setResourceType('document');
+        } else if (fileType.includes('video')) {
+          setResourceType('video');
+        } else if (fileType.includes('text/plain') || fileType.includes('application/json') || 
+                  fileType.includes('text/html') || fileType.includes('text/css') || 
+                  fileType.includes('application/javascript') ||
+                  fileName.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go|json|xml|yaml|yml|md|sql)$/i)) {
+          setResourceType('code');
+        } else if (fileType.includes('zip') || fileType.includes('archive') || 
+                  fileName.match(/\.(zip|rar|7z|tar|gz)$/i)) {
+          setResourceType('document'); // Use 'document' type for archives as 'archive' is not valid in backend
+        } else {
+          setResourceType('other');
+        }
+      }
+      
+      // Show file size warning for large files
+      if (fileSizeMB > 10) {
+        toast.info(`Large file detected (${fileSizeMB.toFixed(1)}MB). Upload may take some time.`);
       }
     }
   };
@@ -94,22 +118,36 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
     }
 
     setIsUploading(true);
+    setUploadProgress(0);
+    
     try {
-      const formData = new FormData();
-      formData.append('title', title.trim());
-      formData.append('description', description.trim());
-      formData.append('file_data', file);
-      formData.append('type', resourceType || 'other');
+      // Check if file is a ZIP file and ensure resourceType is set appropriately
+      // Note: Backend doesn't accept 'archive' as a valid type, so we use 'document' for ZIP files
+      const fileType = file.name.toLowerCase();
+      const finalType = fileType.endsWith('.zip') ? 'document' : (resourceType || 'other');
       
-      if (selectedCategory) {
-        formData.append('category', selectedCategory);
-      }
-      
-      if (roomId) {
-        formData.append('room', roomId);
-      }
+      // For files larger than 10MB, use chunked upload
+      if (file.size > 10 * 1024 * 1024) {
+        await handleChunkedUpload(finalType);
+      } else {
+        // Use regular upload for smaller files
+        const formData = new FormData();
+        formData.append('title', title.trim());
+        formData.append('description', description.trim());
+        formData.append('file_data', file);
+        formData.append('type', finalType);
+        
+        if (selectedCategory) {
+          formData.append('category', selectedCategory);
+        }
+        
+        if (roomId) {
+          formData.append('room', roomId);
+        }
 
-      await resourcesAPI.uploadResource(formData);
+        await resourcesAPI.uploadResource(formData);
+      }
+      
       toast.success('Resource uploaded successfully!');
       
       // Reset form
@@ -119,6 +157,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       setSelectedCategory('');
       setCategorySearch('');
       setResourceType('');
+      setUploadProgress(0);
       
       // Close dialog
       onOpenChange(false);
@@ -132,6 +171,80 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       toast.error('Failed to upload resource. Please try again.');
     } finally {
       setIsUploading(false);
+    }
+  };
+  
+  const handleChunkedUpload = async (fileType = resourceType) => {
+    if (!file) return;
+    
+    try {
+      // For large files, use regular upload instead of chunked upload
+      // since the backend endpoint for chunked uploads is not available
+      const formData = new FormData();
+      formData.append('title', title.trim());
+      formData.append('description', description.trim());
+      formData.append('file_data', file);
+      formData.append('type', fileType || 'other');
+      
+      if (selectedCategory) {
+        formData.append('category', selectedCategory);
+      }
+      
+      if (roomId) {
+        formData.append('room', roomId);
+      }
+
+      // Show progress simulation for better UX
+      const simulateProgress = () => {
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 5;
+          if (progress >= 95) {
+            clearInterval(interval);
+          } else {
+            setUploadProgress(progress);
+          }
+        }, 500);
+        
+        return () => clearInterval(interval);
+      };
+      
+      const cleanup = simulateProgress();
+      await resourcesAPI.uploadResource(formData);
+      cleanup();
+      setUploadProgress(100);
+      
+      return;
+      
+      // The code below is commented out because the endpoint doesn't exist
+      /*
+      const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB chunks
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      let uploadedChunks = 0;
+      
+      // Create metadata for the resource
+      const resourceMetadata = {
+        title: title.trim(),
+        description: description.trim(),
+        type: fileType || 'other',
+        category: selectedCategory || undefined,
+        room: roomId || undefined,
+        filename: file.name,
+        filesize: file.size,
+        filetype: file.type,
+        chunks: totalChunks
+      };
+      
+      // Create upload session
+      const sessionResponse = await resourcesAPI.createResourceUploadSession(resourceMetadata);
+      const sessionId = sessionResponse.session_id;
+      */
+      
+      // This code is no longer needed as we're using regular upload
+      
+    } catch (error) {
+      console.error('Chunked upload failed:', error);
+      throw error;
     }
   };
 
@@ -223,7 +336,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
           
           <div className="space-y-2">
             <Label htmlFor="type">Resource Type</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Button 
                 type="button"
                 variant={resourceType === 'document' ? "default" : "outline"} 
@@ -250,9 +363,17 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
               </Button>
               <Button 
                 type="button"
+                variant={resourceType === 'document' && file?.name?.toLowerCase().endsWith('.zip') ? "default" : "outline"} 
+                onClick={() => setResourceType('document')}
+                className="justify-start"
+              >
+                Archives
+              </Button>
+              <Button 
+                type="button"
                 variant={resourceType === 'other' ? "default" : "outline"} 
                 onClick={() => setResourceType('other')}
-                className="justify-start"
+                className="justify-start col-span-2"
               >
                 Other
               </Button>
@@ -297,8 +418,13 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isUploading}>
-              {isUploading ? 'Uploading...' : 'Upload'}
+            <Button type="submit" disabled={isUploading} className="min-w-[100px]">
+              {isUploading ? (
+                <div className="flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
+                </div>
+              ) : 'Upload'}
             </Button>
           </DialogFooter>
         </form>
