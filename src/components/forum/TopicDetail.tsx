@@ -113,8 +113,9 @@ const TopicDetail: React.FC = () => {
         const topicData = await forumsAPI.getTopic(topicId);
         setTopic(topicData);
         
-        // Get posts for this topic
+        // Get posts for this topic directly from database
         const postsData = await forumsAPI.getPosts(topicId, searchText);
+        console.log('Posts loaded from database:', postsData);
         setPosts(postsData.results || []);
         
         // Check subscription status
@@ -151,6 +152,7 @@ const TopicDetail: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // Simple post data with just the required fields
       const postData = {
         topic: topic.id,
         content: newReply.trim(),
@@ -160,24 +162,30 @@ const TopicDetail: React.FC = () => {
         attachment_size: selectedFile?.file.size || null
       };
 
-      console.log('Creating new post with data:', {
-        ...postData,
-        attachment_base64: postData.attachment_base64 ? '[base64 data]' : null
-      });
-
-      const response = await forumsAPI.createPost(postData);
+      // Submit the post and wait for the response
+      await forumsAPI.createPost(postData);
       
-      if (!response || !response.id) {
-        throw new Error('Invalid response from server');
-      }
-      
-      setPosts([...posts, response]);
+      // Reset form
       setNewReply('');
       setSelectedFile(null);
+      
+      // Wait a moment to ensure the post is saved in the database
+      setTimeout(async () => {
+        // Reload posts from database
+        if (topicId) {
+          try {
+            const freshPosts = await forumsAPI.getPosts(topicId);
+            setPosts(freshPosts.results || []);
+          } catch (err) {
+            console.error('Error refreshing posts:', err);
+          }
+        }
+      }, 500);
+      
       toast.success("Reply posted successfully");
     } catch (error) {
       console.error('Failed to submit reply:', error);
-      toast.error("Failed to post reply. Please check your connection and try again.");
+      toast.error("Failed to post reply. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -373,6 +381,12 @@ const TopicDetail: React.FC = () => {
 
   // Function to render content with highlighted search terms
   const renderContent = (content: string) => {
+    // Ensure content is a string
+    if (typeof content !== 'string') {
+      console.error('Invalid content type:', typeof content, content);
+      return <div>Error displaying content</div>;
+    }
+    
     if (searchText) {
       return <HighlightedText text={content} highlight={searchText} />;
     }
@@ -552,7 +566,7 @@ const TopicDetail: React.FC = () => {
                         )}
                       </div>
                       <div className="mt-2 prose max-w-none prose-sm">
-                        {renderContent(post.content)}
+                        {typeof post.content === 'string' ? renderContent(post.content) : 'Loading...'}
                       </div>
                       
                       {post.has_attachment && (

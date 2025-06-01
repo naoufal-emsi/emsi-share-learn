@@ -42,6 +42,10 @@ interface Event {
     status: 'attending' | 'maybe' | 'declined';
     id: number;
   } | null;
+  image_data?: string;
+  image_base64?: string;
+  image_name?: string;
+  image_type?: string;
 }
 
 const Events: React.FC = () => {
@@ -61,35 +65,42 @@ const Events: React.FC = () => {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      let params = {};
+      // Fetch all events to ensure we get everything including images
+      const response = await eventsAPI.getEvents({});
+      console.log('All events response:', response);
       
+      let filteredEvents = [...response];
+      
+      // Apply filters based on active tab
       switch (activeTab) {
         case 'upcoming':
-          params = { period: 'week' };
+          const now = new Date();
+          filteredEvents = filteredEvents.filter(event => 
+            new Date(event.start_time) > now
+          );
           break;
         case 'past':
-          params = { period: 'past' };
+          const today = new Date();
+          filteredEvents = filteredEvents.filter(event => 
+            new Date(event.end_time) < today
+          );
           break;
         case 'registered':
-          params = { attendance: 'attending' };
+          filteredEvents = filteredEvents.filter(event => 
+            event.user_attendance && event.user_attendance.status === 'attending'
+          );
           break;
         case 'managed':
-          // Only fetch events created by the current user
-          // This will be handled on the frontend since we need to filter by created_by
-          params = {};
+          if (isTeacher) {
+            filteredEvents = filteredEvents.filter(event => 
+              event.created_by.id === user?.id
+            );
+          }
           break;
       }
       
-      const response = await eventsAPI.getEvents(params);
-      console.log('Events response:', response);
-      
-      let eventsList = response;
-      if (activeTab === 'managed' && isTeacher) {
-        // Filter events created by the current user
-        eventsList = response.filter((event: Event) => event.created_by.id === user?.id);
-      }
-      
-      setEvents(eventsList);
+      console.log(`Filtered ${filteredEvents.length} events for tab: ${activeTab}`);
+      setEvents(filteredEvents);
     } catch (error) {
       console.error('Failed to fetch events:', error);
       toast.error('Failed to load events');
@@ -449,7 +460,9 @@ const Events: React.FC = () => {
                       {/* Same card content as above */}
                       <div className="relative h-48 overflow-hidden">
                         <img 
-                          src={getEventImage(event.event_type)} 
+                          src={event.image_base64 
+                            ? `data:${event.image_type || 'image/jpeg'};base64,${event.image_base64}` 
+                            : getEventImage(event.event_type)} 
                           alt={event.title} 
                           className="w-full h-full object-cover"
                         />

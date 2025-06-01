@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Removed tabs import
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -39,6 +39,7 @@ interface Event {
     username: string;
     first_name: string;
     last_name: string;
+    role?: string;
   };
   attendees_count: number;
   user_attendance?: {
@@ -49,6 +50,8 @@ interface Event {
   video_base64?: string;
   image_name?: string;
   video_name?: string;
+  trailer_base64?: string;
+  trailer_type?: 'image' | 'video';
 }
 
 const EventDetails: React.FC = () => {
@@ -59,7 +62,7 @@ const EventDetails: React.FC = () => {
   
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('details');
+  // No longer need tabs
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -220,206 +223,230 @@ const EventDetails: React.FC = () => {
           </Badge>
         </div>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="media">Media</TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          {/* Cover Image Section */}
+          <Card>
+            <CardContent className="p-0 overflow-hidden">
+              {event.image_base64 ? (
+                <img 
+                  src={`data:${event.image_name?.includes('.png') ? 'image/png' : 'image/jpeg'};base64,${event.image_base64}`}
+                  alt="Event" 
+                  className="w-full max-h-[400px] object-cover"
+                />
+              ) : (
+                <div className="h-[200px] flex items-center justify-center bg-muted/20">
+                  <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
           
-          <TabsContent value="details" className="space-y-6">
+          {/* Event Trailer Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Event Trailer</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {event.video_base64 ? (
+                <video 
+                  src={`data:${event.video_name?.includes('.mp4') ? 'video/mp4' : 'video/webm'};base64,${event.video_base64}`}
+                  controls
+                  className="w-full"
+                />
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  No trailer available for this event.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Event Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Event Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-muted-foreground">{event.description || 'No description provided.'}</p>
+              </div>
+              
+              <Separator />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <CalendarDays className="h-4 w-4 mr-2 text-primary" />
+                    <span className="font-medium">Date:</span>
+                    <span className="ml-2">
+                      {format(parseISO(event.start_time), 'EEEE, MMMM d, yyyy')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-primary" />
+                    <span className="font-medium">Time:</span>
+                    <span className="ml-2">
+                      {format(parseISO(event.start_time), 'h:mm a')} - {format(parseISO(event.end_time), 'h:mm a')}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-2 text-primary" />
+                    <span className="font-medium">Location:</span>
+                    <span className="ml-2">
+                      {event.is_online ? 'Online' : (event.location || 'No location specified')}
+                    </span>
+                  </div>
+                  
+                  {event.is_online && event.meeting_link && (
+                    <div className="flex items-center">
+                      <span className="font-medium">Meeting Link:</span>
+                      <a 
+                        href={event.meeting_link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="ml-2 text-primary hover:underline"
+                      >
+                        {event.meeting_link}
+                      </a>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <Users className="h-4 w-4 mr-2 text-primary" />
+                    <span className="font-medium">Attendees:</span>
+                    <span className="ml-2">{event.attendees_count}</span>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <span className="font-medium">Responsible:</span>
+                    <span className="ml-2">
+                      {event.created_by.first_name || event.created_by.username}
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {event.created_by.role || 'Teacher'}
+                      </Badge>
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <span className="font-medium">Your Status:</span>
+                    <span className="ml-2">
+                      {event.user_attendance ? event.user_attendance.status : 'Not registered'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end gap-2">
+              {event.user_attendance ? (
+                <Button 
+                  variant="outline"
+                  onClick={handleCancelAttendance}
+                >
+                  Cancel Registration
+                </Button>
+              ) : (
+                <Button 
+                  onClick={() => handleAttendEvent('attending')}
+                >
+                  Register for Event
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+          
+          {/* Media Upload Section (for teachers only) */}
+          {isTeacher && event.created_by.id === user?.id && (
             <Card>
               <CardHeader>
-                <CardTitle>Event Information</CardTitle>
+                <CardTitle>Manage Event Media</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <p className="text-muted-foreground">{event.description || 'No description provided.'}</p>
+                  <Label htmlFor="event-image">Upload Cover Image</Label>
+                  <div className="flex gap-2">
+                    <input
+                      id="event-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={handleImageUpload}
+                      disabled={!imageFile || uploadingImage}
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Upload
+                    </Button>
+                  </div>
                 </div>
                 
-                <Separator />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center">
-                      <CalendarDays className="h-4 w-4 mr-2 text-primary" />
-                      <span className="font-medium">Date:</span>
-                      <span className="ml-2">
-                        {format(parseISO(event.start_time), 'EEEE, MMMM d, yyyy')}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-primary" />
-                      <span className="font-medium">Time:</span>
-                      <span className="ml-2">
-                        {format(parseISO(event.start_time), 'h:mm a')} - {format(parseISO(event.end_time), 'h:mm a')}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2 text-primary" />
-                      <span className="font-medium">Location:</span>
-                      <span className="ml-2">
-                        {event.is_online ? 'Online' : (event.location || 'No location specified')}
-                      </span>
-                    </div>
-                    
-                    {event.is_online && event.meeting_link && (
-                      <div className="flex items-center">
-                        <span className="font-medium">Meeting Link:</span>
-                        <a 
-                          href={event.meeting_link} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="ml-2 text-primary hover:underline"
-                        >
-                          {event.meeting_link}
-                        </a>
-                      </div>
-                    )}
+                <div className="space-y-2">
+                  <Label htmlFor="event-video">Upload Media</Label>
+                  <div className="flex gap-2">
+                    <input
+                      id="event-video"
+                      type="file"
+                      accept="video/*,image/*"
+                      onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={handleVideoUpload}
+                      disabled={!videoFile || uploadingVideo}
+                    >
+                      {uploadingVideo ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Upload
+                    </Button>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center">
-                      <Users className="h-4 w-4 mr-2 text-primary" />
-                      <span className="font-medium">Attendees:</span>
-                      <span className="ml-2">{event.attendees_count}</span>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <span className="font-medium">Organized by:</span>
-                      <span className="ml-2">
-                        {event.created_by.first_name || event.created_by.username}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <span className="font-medium">Your Status:</span>
-                      <span className="ml-2">
-                        {event.user_attendance ? event.user_attendance.status : 'Not registered'}
-                      </span>
-                    </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="event-trailer">Upload Trailer</Label>
+                  <div className="flex gap-2">
+                    <input
+                      id="event-trailer"
+                      type="file"
+                      accept="video/*,image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const isVideo = file.type.startsWith('video/');
+                          const reader = new FileReader();
+                          reader.onloadend = async () => {
+                            const base64data = reader.result as string;
+                            
+                            await eventsAPI.updateEvent(event.id.toString(), {
+                              trailer_upload: base64data,
+                              trailer_type: isVideo ? 'video' : 'image'
+                            });
+                            
+                            toast.success('Trailer uploaded successfully');
+                            fetchEvent();
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="flex-1"
+                    />
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-end gap-2">
-                {event.user_attendance ? (
-                  <Button 
-                    variant="outline"
-                    onClick={handleCancelAttendance}
-                  >
-                    Cancel Registration
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={() => handleAttendEvent('attending')}
-                  >
-                    Register for Event
-                  </Button>
-                )}
-              </CardFooter>
             </Card>
-          </TabsContent>
-          
-          <TabsContent value="media" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Event Media</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Event Image</h3>
-                  {event.image_base64 ? (
-                    <div className="border rounded-md overflow-hidden">
-                      <img 
-                        src={`data:${event.image_name?.includes('.png') ? 'image/png' : 'image/jpeg'};base64,${event.image_base64}`}
-                        alt="Event" 
-                        className="w-full max-h-96 object-contain"
-                      />
-                    </div>
-                  ) : (
-                    <div className="border rounded-md p-8 flex flex-col items-center justify-center bg-muted/20">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">No image available</p>
-                    </div>
-                  )}
-                  
-                  {isTeacher && event.created_by.id === user?.id && (
-                    <div className="space-y-2">
-                      <Label htmlFor="event-image">Upload Image</Label>
-                      <div className="flex gap-2">
-                        <input
-                          id="event-image"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                          className="flex-1"
-                        />
-                        <Button 
-                          onClick={handleImageUpload}
-                          disabled={!imageFile || uploadingImage}
-                        >
-                          {uploadingImage ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : (
-                            <Upload className="h-4 w-4 mr-2" />
-                          )}
-                          Upload
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <Separator />
-                
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Event Video</h3>
-                  {event.video_base64 ? (
-                    <div className="border rounded-md overflow-hidden">
-                      <video 
-                        src={`data:${event.video_name?.includes('.mp4') ? 'video/mp4' : 'video/webm'};base64,${event.video_base64}`}
-                        controls
-                        className="w-full"
-                      />
-                    </div>
-                  ) : (
-                    <div className="border rounded-md p-8 flex flex-col items-center justify-center bg-muted/20">
-                      <Video className="h-12 w-12 text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">No video available</p>
-                    </div>
-                  )}
-                  
-                  {isTeacher && event.created_by.id === user?.id && (
-                    <div className="space-y-2">
-                      <Label htmlFor="event-video">Upload Video</Label>
-                      <div className="flex gap-2">
-                        <input
-                          id="event-video"
-                          type="file"
-                          accept="video/*"
-                          onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                          className="flex-1"
-                        />
-                        <Button 
-                          onClick={handleVideoUpload}
-                          disabled={!videoFile || uploadingVideo}
-                        >
-                          {uploadingVideo ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          ) : (
-                            <Upload className="h-4 w-4 mr-2" />
-                          )}
-                          Upload
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
     </MainLayout>
   );

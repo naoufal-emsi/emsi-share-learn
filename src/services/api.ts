@@ -748,20 +748,31 @@ export const forumsAPI = {
       endpoint += `&search=${encodeURIComponent(search)}`;
     }
     try {
+      // Direct database query - simple and straightforward
       const response = await apiRequest(endpoint);
+      console.log('Posts from database:', response);
       
-      // Ensure consistent response format
+      // Process the response to ensure content is a string
+      let results = [];
       if (Array.isArray(response)) {
-        return { results: response, count: response.length };
+        results = response.map(post => ({
+          ...post,
+          content: String(post.content) // Ensure content is a string
+        }));
       } else if (response && response.results) {
-        return response;
-      } else if (response) {
-        return { results: [response], count: 1 };
+        results = response.results.map(post => ({
+          ...post,
+          content: String(post.content) // Ensure content is a string
+        }));
       }
-      return { results: [], count: 0 };
+      
+      return { 
+        results: results, 
+        count: results.length 
+      };
     } catch (error) {
       console.error('Error fetching posts:', error);
-      throw error; // Propagate error to be handled by the component
+      return { results: [], count: 0 }; // Return empty results on error
     }
   },
   
@@ -775,44 +786,21 @@ export const forumsAPI = {
     attachment_size?: number | null;
   }) => {
     try {
-      console.log('Sending post data to server:', {
+      // Ensure content is a string
+      const sanitizedData = {
         ...postData,
-        attachment_base64: postData.attachment_base64 ? '[base64 data]' : null
-      });
+        content: String(postData.content)
+      };
       
-      // Validate topic ID exists in PostgreSQL
-      if (!postData.topic || isNaN(Number(postData.topic))) {
-        throw new Error('Invalid topic ID');
-      }
-      
-      // Validate parent post ID if provided
-      if (postData.parent_post && isNaN(Number(postData.parent_post))) {
-        throw new Error('Invalid parent post ID');
-      }
-      
+      // Wait for the response
       const response = await apiRequest('/forums/posts/', {
         method: 'POST',
-        body: JSON.stringify(postData),
+        body: JSON.stringify(sanitizedData),
       });
       
-      if (!response || !response.id) {
-        throw new Error('Invalid response from server when creating post');
-      }
-      
-      console.log('Server response for post creation:', response);
       return response;
     } catch (error) {
-      console.error('Error in createPost:', error);
-      
-      // Handle specific PostgreSQL errors
-      if (error instanceof Error) {
-        if (error.message.includes('foreign key')) {
-          throw new Error('The topic or parent post no longer exists');
-        } else if (error.message.includes('connection')) {
-          throw new Error('Database connection error. Please try again later.');
-        }
-      }
-      
+      console.error('Error creating post:', error);
       throw error;
     }
   },
