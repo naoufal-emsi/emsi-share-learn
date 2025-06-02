@@ -8,11 +8,29 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { eventsAPI } from '@/services/api';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import TeacherSearchDialog from '@/components/events/TeacherSearchDialog';
+import CollaboratorsList from '@/components/events/CollaboratorsList';
+
+interface Collaborator {
+  id: string;
+  user: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    avatar?: string;
+    profile_picture_data?: string;
+    role: string;
+  };
+  is_admin: boolean;
+  added_at: string;
+}
 
 interface EventData {
   id: number;
@@ -26,9 +44,21 @@ interface EventData {
   meeting_link?: string;
   image_data?: string;
   image_base64?: string;
+  video_data?: string;
+  video_base64?: string;
+  trailer_data?: string;
+  trailer_base64?: string;
+  trailer_type?: 'image' | 'video';
   created_by: {
     id: number;
+    first_name: string;
+    last_name: string;
+    username: string;
+    avatar?: string;
+    profile_picture_data?: string;
   };
+  event_collaborators: Collaborator[];
+  can_edit: boolean;
 }
 
 const EditEvent: React.FC = () => {
@@ -51,7 +81,13 @@ const EditEvent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [trailerFile, setTrailerFile] = useState<File | null>(null);
+  const [trailerPreview, setTrailerPreview] = useState<string | null>(null);
+  const [trailerType, setTrailerType] = useState<'image' | 'video' | null>(null);
   const [eventData, setEventData] = useState<EventData | null>(null);
+  const [activeTab, setActiveTab] = useState('details');
+  const [isTeacherSearchOpen, setIsTeacherSearchOpen] = useState(false);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
 
   useEffect(() => {
     const fetchEventData = async () => {
@@ -85,6 +121,21 @@ const EditEvent: React.FC = () => {
         } else if (data.image_data) {
           setImagePreview(data.image_data);
         }
+        
+        // Set trailer preview if available
+        if (data.trailer_type) {
+          setTrailerType(data.trailer_type);
+          if (data.trailer_base64) {
+            const mimeType = data.trailer_type === 'image' ? 'image/jpeg' : 'video/mp4';
+            setTrailerPreview(`data:${mimeType};base64,${data.trailer_base64}`);
+          } else if (data.trailer_data) {
+            setTrailerPreview(data.trailer_data);
+          } else if (data.video_base64 && data.trailer_type === 'video') {
+            setTrailerPreview(`data:video/mp4;base64,${data.video_base64}`);
+          } else if (data.video_data && data.trailer_type === 'video') {
+            setTrailerPreview(data.video_data);
+          }
+        }
       } catch (error) {
         console.error('Failed to fetch event data:', error);
         toast.error('Failed to load event data');
@@ -99,11 +150,29 @@ const EditEvent: React.FC = () => {
 
   useEffect(() => {
     // Check if user has permission to edit this event
-    if (!isLoading && eventData && !isAdmin && eventData.created_by.id !== user?.id) {
+    if (!isLoading && eventData && !eventData.can_edit) {
       toast.error('You do not have permission to edit this event');
       navigate('/events');
     }
-  }, [eventData, isLoading, isAdmin, user, navigate]);
+  }, [eventData, isLoading, navigate]);
+  
+  useEffect(() => {
+    // Load collaborators when event data is available
+    if (eventData) {
+      setCollaborators(eventData.event_collaborators || []);
+    }
+  }, [eventData]);
+  
+  const refreshCollaborators = async () => {
+    if (!eventId) return;
+    
+    try {
+      const data = await eventsAPI.getCollaborators(eventId);
+      setCollaborators(data);
+    } catch (error) {
+      console.error('Failed to fetch collaborators:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,6 +216,16 @@ const EditEvent: React.FC = () => {
         });
       }
       
+      // Process trailer if provided
+      let trailerUpload;
+      if (trailerFile) {
+        const reader = new FileReader();
+        trailerUpload = await new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(trailerFile);
+        });
+      }
+      
       const updatedEventData = {
         title,
         description,
@@ -156,7 +235,10 @@ const EditEvent: React.FC = () => {
         event_type: eventType,
         is_online: isOnline,
         meeting_link: isOnline ? meetingLink : '',
-        image_upload: imageUpload || undefined
+        image_upload: imageUpload || undefined,
+        video_upload: trailerType === 'video' ? trailerUpload : undefined,
+        trailer_upload: trailerType === 'image' ? trailerUpload : undefined,
+        trailer_type: trailerType || undefined
       };
       
       await eventsAPI.updateEvent(eventId!, updatedEventData);
@@ -210,6 +292,15 @@ const EditEvent: React.FC = () => {
             <CardDescription>
               Update the information for this event
             </CardDescription>
+            
+            {!isLoading && eventData && (
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+                <TabsList>
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="collaborators">Collaborators</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -217,17 +308,19 @@ const EditEvent: React.FC = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Event Title*</Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter event title"
-                    required
-                  />
-                </div>
+              <>
+                <TabsContent value="details" className="mt-0">
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Event Title*</Label>
+                      <Input
+                        id="title"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Enter event title"
+                        required
+                      />
+                    </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
@@ -382,6 +475,92 @@ const EditEvent: React.FC = () => {
                   )}
                 </div>
                 
+                <div className="space-y-2 border-t pt-4 mt-4">
+                  <Label>Event Trailer</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="trailer-image" className="text-sm text-muted-foreground mb-2 block">
+                        Upload Image Trailer
+                      </Label>
+                      <Input
+                        id="trailer-image"
+                        type="file"
+                        accept="image/*"
+                        disabled={trailerType === 'video'}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setTrailerFile(file);
+                            setTrailerType('image');
+                            // Create preview
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setTrailerPreview(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="trailer-video" className="text-sm text-muted-foreground mb-2 block">
+                        Upload Video Trailer
+                      </Label>
+                      <Input
+                        id="trailer-video"
+                        type="file"
+                        accept="video/*"
+                        disabled={trailerType === 'image'}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setTrailerFile(file);
+                            setTrailerType('video');
+                            // Create preview for video
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setTrailerPreview(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {trailerPreview && (
+                    <div className="mt-2">
+                      <p className="text-sm mb-1">Trailer Preview:</p>
+                      {trailerType === 'image' ? (
+                        <img 
+                          src={trailerPreview} 
+                          alt="Trailer preview" 
+                          className="max-h-40 rounded-md object-cover"
+                        />
+                      ) : (
+                        <video 
+                          src={trailerPreview} 
+                          controls 
+                          className="max-h-40 rounded-md w-full"
+                        />
+                      )}
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        className="mt-2"
+                        onClick={() => {
+                          setTrailerFile(null);
+                          setTrailerPreview(null);
+                          setTrailerType(null);
+                        }}
+                      >
+                        Remove Trailer
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
                 <div className="flex justify-end space-x-2">
                   <Button 
                     type="button" 
@@ -396,9 +575,41 @@ const EditEvent: React.FC = () => {
                   </Button>
                 </div>
               </form>
+              </TabsContent>
+              
+              <TabsContent value="collaborators" className="mt-0">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-medium">Teacher Collaborators</h3>
+                    <Button 
+                      onClick={() => setIsTeacherSearchOpen(true)}
+                      size="sm"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add Teacher
+                    </Button>
+                  </div>
+                  
+                  <CollaboratorsList 
+                    eventId={eventId!}
+                    collaborators={collaborators}
+                    canManage={true}
+                    onCollaboratorUpdated={refreshCollaborators}
+                  />
+                </div>
+              </TabsContent>
+              </>
+            
             )}
           </CardContent>
         </Card>
+        
+        <TeacherSearchDialog
+          open={isTeacherSearchOpen}
+          onOpenChange={setIsTeacherSearchOpen}
+          eventId={eventId!}
+          onTeacherAdded={refreshCollaborators}
+        />
       </div>
     </MainLayout>
   );

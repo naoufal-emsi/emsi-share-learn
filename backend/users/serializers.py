@@ -47,10 +47,11 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class AdminUserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
+    profile_picture = serializers.CharField(write_only=True, required=False, allow_blank=True)
     
     class Meta:
         model = User
-        fields = ['username', 'password', 'email', 'first_name', 'last_name', 'role']
+        fields = ['username', 'password', 'email', 'first_name', 'last_name', 'role', 'profile_picture']
     
     def validate(self, attrs):
         # Validate role
@@ -61,5 +62,18 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
         return attrs
     
     def create(self, validated_data):
+        profile_picture_data = None
+        if 'profile_picture' in validated_data:
+            profile_picture = validated_data.pop('profile_picture')
+            if profile_picture and profile_picture.startswith('data:image'):
+                # Extract the base64 part
+                format, imgstr = profile_picture.split(';base64,')
+                profile_picture_data = base64.b64decode(imgstr)
+        
         user = User.objects.create_user(**validated_data)
+        
+        if profile_picture_data:
+            user.profile_picture = profile_picture_data
+            user.save()
+            
         return user

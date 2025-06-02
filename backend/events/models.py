@@ -23,6 +23,7 @@ class Event(models.Model):
     meeting_link = models.URLField(blank=True, null=True)
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='events', null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_events')
+    collaborators = models.ManyToManyField(settings.AUTH_USER_MODEL, through='EventCollaborator', related_name='collaborated_events')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -49,9 +50,26 @@ class Event(models.Model):
         if self.video_data:
             return base64.b64encode(self.video_data).decode('utf-8')
         return None
+    
+    def can_edit(self, user):
+        """Check if a user has permission to edit this event"""
+        if user.role in ['admin', 'administration']:
+            return True
+        if user.id == self.created_by.id:
+            return True
+        return self.collaborators.filter(id=user.id, eventcollaborator__is_admin=True).exists()
         
     class Meta:
         ordering = ['start_time']
+        
+class EventCollaborator(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    is_admin = models.BooleanField(default=False)
+    added_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('event', 'user')
 
 class EventAttendee(models.Model):
     ATTENDANCE_STATUS = (

@@ -128,6 +128,7 @@ export const authAPI = {
     first_name: string;
     last_name: string;
     role: 'student' | 'teacher' | 'admin' | 'administration';
+    profile_picture?: string;
   }) => {
     try {
       const response = await apiRequest('/users/create/', {
@@ -488,10 +489,41 @@ export const eventsAPI = {
     room?: number;
     image_upload?: string;
     video_upload?: string;
+    trailer_upload?: string;
+    trailer_type?: 'image' | 'video' | null;
   }>) => {
     return apiRequest(`/events/${eventId}/`, {
       method: 'PATCH',
       body: JSON.stringify(eventData),
+    });
+  },
+  
+  searchTeachers: async (query: string) => {
+    return apiRequest(`/events/search_teachers/?q=${encodeURIComponent(query)}`);
+  },
+  
+  getCollaborators: async (eventId: string) => {
+    return apiRequest(`/events/${eventId}/collaborators/`);
+  },
+  
+  addCollaborator: async (eventId: string, userId: string, isAdmin: boolean = false) => {
+    return apiRequest(`/events/${eventId}/add_collaborator/`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, is_admin: isAdmin }),
+    });
+  },
+  
+  removeCollaborator: async (eventId: string, collaboratorId: string) => {
+    return apiRequest(`/events/${eventId}/remove_collaborator/`, {
+      method: 'POST',
+      body: JSON.stringify({ collaborator_id: collaboratorId }),
+    });
+  },
+  
+  updateCollaborator: async (eventId: string, collaboratorId: string, isAdmin: boolean) => {
+    return apiRequest(`/events/${eventId}/update_collaborator/`, {
+      method: 'POST',
+      body: JSON.stringify({ collaborator_id: collaboratorId, is_admin: isAdmin }),
     });
   },
   

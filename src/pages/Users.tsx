@@ -34,6 +34,7 @@ interface NewUserForm {
   first_name: string;
   last_name: string;
   role: 'student' | 'teacher' | 'admin' | 'administration';
+  profile_picture?: string;
 }
 
 const Users: React.FC = () => {
@@ -51,8 +52,10 @@ const Users: React.FC = () => {
     password: '',
     first_name: '',
     last_name: '',
-    role: 'student'
+    role: 'student',
+    profile_picture: ''
   });
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -158,6 +161,21 @@ const Users: React.FC = () => {
     setIsSubmitting(true);
     
     try {
+      // Process profile picture if provided
+      if (profilePicture) {
+        const reader = new FileReader();
+        const base64Image = await new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            resolve(result);
+          };
+          reader.readAsDataURL(profilePicture);
+        });
+        
+        // Set the profile picture in the user data
+        newUser.profile_picture = base64Image;
+      }
+      
       await authAPI.createUser(newUser);
       
       toast({
@@ -172,8 +190,10 @@ const Users: React.FC = () => {
         password: '',
         first_name: '',
         last_name: '',
-        role: 'student'
+        role: 'student',
+        profile_picture: ''
       });
+      setProfilePicture(null);
       setIsDialogOpen(false);
       
       // Refresh the users list
@@ -342,6 +362,37 @@ const Users: React.FC = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="profile_picture" className="text-right">
+                            Profile Picture
+                          </Label>
+                          <Input
+                            id="profile_picture"
+                            name="profile_picture"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setProfilePicture(file);
+                              }
+                            }}
+                            className="col-span-3"
+                          />
+                        </div>
+                        {profilePicture && (
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <div className="col-start-2 col-span-3">
+                              <div className="w-16 h-16 rounded-full overflow-hidden">
+                                <img 
+                                  src={URL.createObjectURL(profilePicture)} 
+                                  alt="Profile preview" 
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
