@@ -12,7 +12,6 @@ from resources.views import ResourceViewSet, ResourceCategoryViewSet
 from quizzes.views import QuizViewSet, QuestionViewSet
 from forums.views import ForumCategoryViewSet, ForumTopicViewSet, ForumPostViewSet, ForumAttachmentViewSet
 from notifications.views import NotificationViewSet
-from events.views import EventViewSet
 
 router = routers.DefaultRouter()
 # router.register(r'users', UserListView, basename='user')  # Removed - not a ViewSet
@@ -26,13 +25,13 @@ router.register(r'forums/topics', ForumTopicViewSet)
 router.register(r'forums/posts', ForumPostViewSet)
 router.register(r'forums/attachments', ForumAttachmentViewSet)
 router.register(r'notifications', NotificationViewSet, basename='notification')
-router.register(r'events', EventViewSet, basename='event')
 
 from users.views import UserDeleteView, AdminUserCreateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/events/', include('events.urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/register/', RegisterView.as_view(), name='register'),

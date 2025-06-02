@@ -308,8 +308,8 @@ const EditEvent: React.FC = () => {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <>
-                <TabsContent value="details" className="mt-0">
+              <div>
+                {activeTab === 'details' && (
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
                       <Label htmlFor="title">Event Title*</Label>
@@ -322,284 +322,285 @@ const EditEvent: React.FC = () => {
                       />
                     </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Provide details about the event"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="event-type">Event Type*</Label>
-                  <Select value={eventType} onValueChange={setEventType} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select event type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="lecture">Lecture</SelectItem>
-                      <SelectItem value="workshop">Workshop</SelectItem>
-                      <SelectItem value="exam">Exam</SelectItem>
-                      <SelectItem value="deadline">Deadline</SelectItem>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="is-online"
-                    checked={isOnline}
-                    onCheckedChange={setIsOnline}
-                  />
-                  <Label htmlFor="is-online">This is an online event</Label>
-                </div>
-                
-                {isOnline ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="meeting-link">Meeting Link</Label>
-                    <Input
-                      id="meeting-link"
-                      value={meetingLink}
-                      onChange={(e) => setMeetingLink(e.target.value)}
-                      placeholder="Enter meeting URL"
-                      type="url"
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Enter event location"
-                    />
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="start-date">Start Date*</Label>
-                    <Input
-                      id="start-date"
-                      type="date"
-                      value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
-                      onChange={(e) => {
-                        const dateValue = e.target.value;
-                        if (dateValue) {
-                          setStartDate(new Date(dateValue));
-                        } else {
-                          setStartDate(undefined);
-                        }
-                      }}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="start-time">Start Time*</Label>
-                    <Input
-                      id="start-time"
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="end-date">End Date*</Label>
-                    <Input
-                      id="end-date"
-                      type="date"
-                      value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
-                      onChange={(e) => {
-                        const dateValue = e.target.value;
-                        if (dateValue) {
-                          setEndDate(new Date(dateValue));
-                        } else {
-                          setEndDate(undefined);
-                        }
-                      }}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="end-time">End Time*</Label>
-                    <Input
-                      id="end-time"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="event-image">Event Cover Image</Label>
-                  <Input
-                    id="event-image"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setImageFile(file);
-                        // Create preview
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setImagePreview(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                  {imagePreview && (
-                    <div className="mt-2">
-                      <p className="text-sm mb-1">Preview:</p>
-                      <img 
-                        src={imagePreview} 
-                        alt="Event preview" 
-                        className="max-h-40 rounded-md object-cover"
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Provide details about the event"
+                        rows={3}
                       />
                     </div>
-                  )}
-                </div>
-                
-                <div className="space-y-2 border-t pt-4 mt-4">
-                  <Label>Event Trailer</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="trailer-image" className="text-sm text-muted-foreground mb-2 block">
-                        Upload Image Trailer
-                      </Label>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="event-type">Event Type*</Label>
+                      <Select value={eventType} onValueChange={setEventType} required>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select event type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="lecture">Lecture</SelectItem>
+                          <SelectItem value="workshop">Workshop</SelectItem>
+                          <SelectItem value="exam">Exam</SelectItem>
+                          <SelectItem value="deadline">Deadline</SelectItem>
+                          <SelectItem value="meeting">Meeting</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="is-online"
+                        checked={isOnline}
+                        onCheckedChange={setIsOnline}
+                      />
+                      <Label htmlFor="is-online">This is an online event</Label>
+                    </div>
+                    
+                    {isOnline ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="meeting-link">Meeting Link</Label>
+                        <Input
+                          id="meeting-link"
+                          value={meetingLink}
+                          onChange={(e) => setMeetingLink(e.target.value)}
+                          placeholder="Enter meeting URL"
+                          type="url"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="location">Location</Label>
+                        <Input
+                          id="location"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder="Enter event location"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="start-date">Start Date*</Label>
+                        <Input
+                          id="start-date"
+                          type="date"
+                          value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
+                          onChange={(e) => {
+                            const dateValue = e.target.value;
+                            if (dateValue) {
+                              setStartDate(new Date(dateValue));
+                            } else {
+                              setStartDate(undefined);
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="start-time">Start Time*</Label>
+                        <Input
+                          id="start-time"
+                          type="time"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="end-date">End Date*</Label>
+                        <Input
+                          id="end-date"
+                          type="date"
+                          value={endDate ? format(endDate, "yyyy-MM-dd") : ""}
+                          onChange={(e) => {
+                            const dateValue = e.target.value;
+                            if (dateValue) {
+                              setEndDate(new Date(dateValue));
+                            } else {
+                              setEndDate(undefined);
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="end-time">End Time*</Label>
+                        <Input
+                          id="end-time"
+                          type="time"
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="event-image">Event Cover Image</Label>
                       <Input
-                        id="trailer-image"
+                        id="event-image"
                         type="file"
                         accept="image/*"
-                        disabled={trailerType === 'video'}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            setTrailerFile(file);
-                            setTrailerType('image');
+                            setImageFile(file);
                             // Create preview
                             const reader = new FileReader();
                             reader.onloadend = () => {
-                              setTrailerPreview(reader.result as string);
+                              setImagePreview(reader.result as string);
                             };
                             reader.readAsDataURL(file);
                           }
                         }}
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="trailer-video" className="text-sm text-muted-foreground mb-2 block">
-                        Upload Video Trailer
-                      </Label>
-                      <Input
-                        id="trailer-video"
-                        type="file"
-                        accept="video/*"
-                        disabled={trailerType === 'image'}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setTrailerFile(file);
-                            setTrailerType('video');
-                            // Create preview for video
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setTrailerPreview(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                  
-                  {trailerPreview && (
-                    <div className="mt-2">
-                      <p className="text-sm mb-1">Trailer Preview:</p>
-                      {trailerType === 'image' ? (
-                        <img 
-                          src={trailerPreview} 
-                          alt="Trailer preview" 
-                          className="max-h-40 rounded-md object-cover"
-                        />
-                      ) : (
-                        <video 
-                          src={trailerPreview} 
-                          controls 
-                          className="max-h-40 rounded-md w-full"
-                        />
+                      {imagePreview && (
+                        <div className="mt-2">
+                          <p className="text-sm mb-1">Preview:</p>
+                          <img 
+                            src={imagePreview} 
+                            alt="Event preview" 
+                            className="max-h-40 rounded-md object-cover"
+                          />
+                        </div>
                       )}
+                    </div>
+                    
+                    <div className="space-y-2 border-t pt-4 mt-4">
+                      <Label>Event Trailer</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="trailer-image" className="text-sm text-muted-foreground mb-2 block">
+                            Upload Image Trailer
+                          </Label>
+                          <Input
+                            id="trailer-image"
+                            type="file"
+                            accept="image/*"
+                            disabled={trailerType === 'video'}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setTrailerFile(file);
+                                setTrailerType('image');
+                                // Create preview
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setTrailerPreview(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="trailer-video" className="text-sm text-muted-foreground mb-2 block">
+                            Upload Video Trailer
+                          </Label>
+                          <Input
+                            id="trailer-video"
+                            type="file"
+                            accept="video/*"
+                            disabled={trailerType === 'image'}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setTrailerFile(file);
+                                setTrailerType('video');
+                                // Create preview for video
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setTrailerPreview(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {trailerPreview && (
+                        <div className="mt-2">
+                          <p className="text-sm mb-1">Trailer Preview:</p>
+                          {trailerType === 'image' ? (
+                            <img 
+                              src={trailerPreview} 
+                              alt="Trailer preview" 
+                              className="max-h-40 rounded-md object-cover"
+                            />
+                          ) : (
+                            <video 
+                              src={trailerPreview} 
+                              controls 
+                              className="max-h-40 rounded-md w-full"
+                            />
+                          )}
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-2"
+                            onClick={() => {
+                              setTrailerFile(null);
+                              setTrailerPreview(null);
+                              setTrailerType(null);
+                            }}
+                          >
+                            Remove Trailer
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-end space-x-2">
                       <Button 
                         type="button" 
                         variant="outline" 
-                        size="sm" 
-                        className="mt-2"
-                        onClick={() => {
-                          setTrailerFile(null);
-                          setTrailerPreview(null);
-                          setTrailerType(null);
-                        }}
+                        onClick={() => navigate('/events')}
+                        disabled={isSubmitting}
                       >
-                        Remove Trailer
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? 'Updating...' : 'Update Event'}
                       </Button>
                     </div>
-                  )}
-                </div>
+                  </form>
+                )}
                 
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => navigate('/events')}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? 'Updating...' : 'Update Event'}
-                  </Button>
-                </div>
-              </form>
-              </TabsContent>
-              
-              <TabsContent value="collaborators" className="mt-0">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Teacher Collaborators</h3>
-                    <Button 
-                      onClick={() => setIsTeacherSearchOpen(true)}
-                      size="sm"
-                    >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Add Teacher
-                    </Button>
+                {activeTab === 'collaborators' && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-medium">Collaborators</h3>
+                      {isAdmin && (
+                        <Button 
+                          onClick={() => setIsTeacherSearchOpen(true)}
+                          size="sm"
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add Collaborators
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <CollaboratorsList 
+                      eventId={eventId!}
+                      collaborators={collaborators}
+                      canManage={isAdmin}
+                      onCollaboratorUpdated={refreshCollaborators}
+                    />
                   </div>
-                  
-                  <CollaboratorsList 
-                    eventId={eventId!}
-                    collaborators={collaborators}
-                    canManage={true}
-                    onCollaboratorUpdated={refreshCollaborators}
-                  />
-                </div>
-              </TabsContent>
-              </>
-            
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

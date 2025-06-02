@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, EventAttendee, EventCollaborator
+from .models import Event, EventAttendee, EventCollaborator, ChunkUploadSession
 from django.contrib.auth import get_user_model
 from rooms.serializers import RoomSerializer
 import base64
@@ -35,6 +35,13 @@ class EventCollaboratorSerializer(serializers.ModelSerializer):
         model = EventCollaborator
         fields = ['id', 'event', 'user', 'is_admin', 'added_at']
         read_only_fields = ['added_at']
+
+class ChunkUploadSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChunkUploadSession
+        fields = ['id', 'event', 'filename', 'filesize', 'filetype', 'total_chunks', 
+                 'uploaded_chunks', 'is_complete', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 class EventSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)

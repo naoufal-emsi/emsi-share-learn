@@ -205,6 +205,36 @@ class EventViewSet(viewsets.ModelViewSet):
         serializer = EventAttendeeSerializer(attendees, many=True)
         return Response(serializer.data)
         
+    @action(detail=True, methods=['post'])
+    def auto_register_collaborators(self, request, pk=None):
+        """Auto-register event creator and collaborators as attendees"""
+        event = self.get_object()
+        registered_count = 0
+        
+        # Register the event creator if not already registered
+        creator_attendance, created = EventAttendee.objects.get_or_create(
+            event=event,
+            user=event.created_by,
+            defaults={'status': 'attending'}
+        )
+        if created:
+            registered_count += 1
+            
+        # Register all collaborators if not already registered
+        for collaborator in EventCollaborator.objects.filter(event=event):
+            attendee, created = EventAttendee.objects.get_or_create(
+                event=event,
+                user=collaborator.user,
+                defaults={'status': 'attending'}
+            )
+            if created:
+                registered_count += 1
+                
+        return Response({
+            "success": True,
+            "registered_count": registered_count
+        })
+        
     @action(detail=True, methods=['get'])
     def collaborators(self, request, pk=None):
         event = self.get_object()
@@ -232,12 +262,16 @@ class EventViewSet(viewsets.ModelViewSet):
         try:
             user = User.objects.get(id=user_id)
             
-            # Check if user is a teacher
-            if user.role != 'teacher':
+            # Check if user is a teacher or student
+            if user.role not in ['teacher', 'student']:
                 return Response(
-                    {"detail": "Only teachers can be added as collaborators."},
+                    {"detail": "Only teachers and students can be added as collaborators."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+                
+            # If user is a student, force is_admin to False
+            if user.role == 'student':
+                is_admin = False
             
             # Check if user is already a collaborator
             if EventCollaborator.objects.filter(event=event, user=user).exists():
@@ -315,17 +349,40 @@ class EventViewSet(viewsets.ModelViewSet):
     def search_teachers(self, request):
         """Search for teachers to add as collaborators"""
         query = request.query_params.get('q', '')
-        if not query or len(query) < 2:
-            return Response({"detail": "Search query must be at least 2 characters."}, status=status.HTTP_400_BAD_REQUEST)
         
-        teachers = User.objects.filter(
-            role='teacher'
-        ).filter(
-            Q(first_name__icontains=query) | 
-            Q(last_name__icontains=query) |
-            Q(username__icontains=query) |
-            Q(email__icontains=query)
-        )[:10]  # Limit to 10 results
+        # If query is empty, return all teachers
+        if not query:
+            teachers = User.objects.filter(role='teacher')[:20]  # Limit to 20 results
+        else:
+            teachers = User.objects.filter(
+                role='teacher'
+            ).filter(
+                Q(first_name__icontains=query) | 
+                Q(last_name__icontains=query) |
+                Q(username__icontains=query) |
+                Q(email__icontains=query)
+            )[:20]  # Limit to 20 results
         
         serializer = UserSerializer(teachers, many=True)
+        return Response(serializer.data)
+        
+    @action(detail=False, methods=['get'])
+    def search_students(self, request):
+        """Search for students to add as collaborators"""
+        query = request.query_params.get('q', '')
+        
+        # If query is empty, return all students
+        if not query:
+            students = User.objects.filter(role='student')[:20]  # Limit to 20 results
+        else:
+            students = User.objects.filter(
+                role='student'
+            ).filter(
+                Q(first_name__icontains=query) | 
+                Q(last_name__icontains=query) |
+                Q(username__icontains=query) |
+                Q(email__icontains=query)
+            )[:20]  # Limit to 20 results
+        
+        serializer = UserSerializer(students, many=True)
         return Response(serializer.data)

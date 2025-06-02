@@ -499,7 +499,13 @@ export const eventsAPI = {
   },
   
   searchTeachers: async (query: string) => {
+    console.log('Searching teachers with query:', query);
     return apiRequest(`/events/search_teachers/?q=${encodeURIComponent(query)}`);
+  },
+  
+  searchStudents: async (query: string) => {
+    console.log('Searching students with query:', query);
+    return apiRequest(`/events/search_students/?q=${encodeURIComponent(query)}`);
   },
   
   getCollaborators: async (eventId: string) => {
@@ -552,6 +558,12 @@ export const eventsAPI = {
       endpoint += `?status=${status}`;
     }
     return apiRequest(endpoint);
+  },
+  
+  autoRegisterCollaborators: async (eventId: string) => {
+    return apiRequest(`/events/${eventId}/auto_register_collaborators/`, {
+      method: 'POST'
+    });
   }
 };
 

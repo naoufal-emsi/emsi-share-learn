@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-// Removed tabs import
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
@@ -19,10 +19,30 @@ import {
   Upload,
   Loader2,
   Video,
-  Image as ImageIcon
+  Image as ImageIcon,
+  UserCog,
+  UserCheck
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import AttendeesList from '@/components/events/AttendeesList';
+
+import { User } from '@/types/user';
+
+interface Collaborator {
+  id: string;
+  user: User;
+  is_admin: boolean;
+  added_at: string;
+}
+
+interface Attendee {
+  id: number;
+  user: User;
+  status: 'attending' | 'maybe' | 'declined';
+  created_at: string;
+}
 
 interface Event {
   id: number;
@@ -34,13 +54,7 @@ interface Event {
   event_type: string;
   is_online: boolean;
   meeting_link?: string;
-  created_by: {
-    id: number;
-    username: string;
-    first_name: string;
-    last_name: string;
-    role?: string;
-  };
+  created_by: User;
   attendees_count: number;
   user_attendance?: {
     status: 'attending' | 'maybe' | 'declined';
@@ -52,6 +66,8 @@ interface Event {
   video_name?: string;
   trailer_base64?: string;
   trailer_type?: 'image' | 'video';
+  event_collaborators: Collaborator[];
+  attendees: Attendee[];
 }
 
 const EventDetails: React.FC = () => {
@@ -62,7 +78,8 @@ const EventDetails: React.FC = () => {
   
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
-  // No longer need tabs
+  const [activeTab, setActiveTab] = useState('details');
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -71,6 +88,17 @@ const EventDetails: React.FC = () => {
   useEffect(() => {
     if (eventId) {
       fetchEvent();
+      
+      // Auto-register creator and collaborators
+      const autoRegister = async () => {
+        try {
+          await eventsAPI.autoRegisterCollaborators(eventId);
+        } catch (error) {
+          console.error('Failed to auto-register collaborators:', error);
+        }
+      };
+      
+      autoRegister();
     }
   }, [eventId]);
   
@@ -79,6 +107,12 @@ const EventDetails: React.FC = () => {
     try {
       const data = await eventsAPI.getEvent(eventId!);
       setEvent(data);
+      
+      // Fetch attendees
+      if (data.id) {
+        const attendeesData = await eventsAPI.getAttendees(data.id.toString());
+        setAttendees(attendeesData);
+      }
     } catch (error) {
       console.error('Failed to fetch event:', error);
       toast.error('Failed to load event details');
@@ -92,7 +126,18 @@ const EventDetails: React.FC = () => {
     
     try {
       await eventsAPI.attendEvent(event.id.toString(), status);
-      toast.success(`You are now ${status} this event`);
+      toast.success(`Registration successful! You are now ${status} this event`);
+      
+      // Show notification
+      const notificationMessage = `You have successfully registered for "${event.title}"`;
+      toast.success(notificationMessage, {
+        duration: 5000,
+        action: {
+          label: "View Event",
+          onClick: () => {}
+        }
+      });
+      
       fetchEvent();
     } catch (error) {
       console.error('Failed to attend event:', error);
@@ -223,6 +268,17 @@ const EventDetails: React.FC = () => {
           </Badge>
         </div>
         
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="collaborators">Collaborators</TabsTrigger>
+            <TabsTrigger value="attendees">
+              Attendees
+              <Badge variant="secondary" className="ml-1">{event.attendees_count}</Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
         <div className="space-y-6">
           {/* Cover Image Section */}
           <Card>
@@ -241,122 +297,191 @@ const EventDetails: React.FC = () => {
             </CardContent>
           </Card>
           
-          {/* Event Trailer Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Event Trailer</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {event.video_base64 ? (
-                <video 
-                  src={`data:${event.video_name?.includes('.mp4') ? 'video/mp4' : 'video/webm'};base64,${event.video_base64}`}
-                  controls
-                  className="w-full"
-                />
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  No trailer available for this event.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* Event Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Event Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-muted-foreground">{event.description || 'No description provided.'}</p>
-              </div>
-              
-              <Separator />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TabsContent value="details">
+            {/* Event Trailer Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Trailer</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {event.video_base64 ? (
+                  <video 
+                    src={`data:${event.video_name?.includes('.mp4') ? 'video/mp4' : 'video/webm'};base64,${event.video_base64}`}
+                    controls
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No trailer available for this event.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Event Information */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Event Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex items-center">
-                    <CalendarDays className="h-4 w-4 mr-2 text-primary" />
-                    <span className="font-medium">Date:</span>
-                    <span className="ml-2">
-                      {format(parseISO(event.start_time), 'EEEE, MMMM d, yyyy')}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-primary" />
-                    <span className="font-medium">Time:</span>
-                    <span className="ml-2">
-                      {format(parseISO(event.start_time), 'h:mm a')} - {format(parseISO(event.end_time), 'h:mm a')}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-2 text-primary" />
-                    <span className="font-medium">Location:</span>
-                    <span className="ml-2">
-                      {event.is_online ? 'Online' : (event.location || 'No location specified')}
-                    </span>
-                  </div>
-                  
-                  {event.is_online && event.meeting_link && (
-                    <div className="flex items-center">
-                      <span className="font-medium">Meeting Link:</span>
-                      <a 
-                        href={event.meeting_link} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="ml-2 text-primary hover:underline"
-                      >
-                        {event.meeting_link}
-                      </a>
-                    </div>
-                  )}
+                  <p className="text-muted-foreground">{event.description || 'No description provided.'}</p>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <Users className="h-4 w-4 mr-2 text-primary" />
-                    <span className="font-medium">Attendees:</span>
-                    <span className="ml-2">{event.attendees_count}</span>
+                <Separator />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <CalendarDays className="h-4 w-4 mr-2 text-primary" />
+                      <span className="font-medium">Date:</span>
+                      <span className="ml-2">
+                        {format(parseISO(event.start_time), 'EEEE, MMMM d, yyyy')}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-primary" />
+                      <span className="font-medium">Time:</span>
+                      <span className="ml-2">
+                        {format(parseISO(event.start_time), 'h:mm a')} - {format(parseISO(event.end_time), 'h:mm a')}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-primary" />
+                      <span className="font-medium">Location:</span>
+                      <span className="ml-2">
+                        {event.is_online ? 'Online' : (event.location || 'No location specified')}
+                      </span>
+                    </div>
+                    
+                    {event.is_online && event.meeting_link && (
+                      <div className="flex items-center">
+                        <span className="font-medium">Meeting Link:</span>
+                        <a 
+                          href={event.meeting_link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-2 text-primary hover:underline"
+                        >
+                          {event.meeting_link}
+                        </a>
+                      </div>
+                    )}
                   </div>
                   
-                  <div className="flex items-center">
-                    <span className="font-medium">Responsible:</span>
-                    <span className="ml-2">
-                      {event.created_by.first_name || event.created_by.username}
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {event.created_by.role || 'Teacher'}
-                      </Badge>
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <span className="font-medium">Your Status:</span>
-                    <span className="ml-2">
-                      {event.user_attendance ? event.user_attendance.status : 'Not registered'}
-                    </span>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 mr-2 text-primary" />
+                      <span className="font-medium">Attendees:</span>
+                      <span className="ml-2">{event.attendees_count}</span>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <span className="font-medium">Responsible:</span>
+                      <span className="ml-2">
+                        {event.created_by.first_name || event.created_by.username}
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {event.created_by.role || 'Teacher'}
+                        </Badge>
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      <span className="font-medium">Your Status:</span>
+                      <span className="ml-2">
+                        {event.user_attendance ? event.user_attendance.status : 'Not registered'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-              {event.user_attendance ? (
-                <Button 
-                  variant="outline"
-                  onClick={handleCancelAttendance}
-                >
-                  Cancel Registration
-                </Button>
-              ) : (
-                <Button 
-                  onClick={() => handleAttendEvent('attending')}
-                >
-                  Register for Event
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2">
+                {event.user_attendance ? (
+                  <Button 
+                    variant="outline"
+                    onClick={handleCancelAttendance}
+                  >
+                    Cancel Registration
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => handleAttendEvent('attending')}
+                  >
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Register for Event
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="collaborators">
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Collaborators</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {event.event_collaborators && event.event_collaborators.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {event.event_collaborators.map((collaborator) => (
+                      <div 
+                        key={collaborator.id}
+                        className="flex items-center p-2 border rounded-md"
+                      >
+                        <Avatar className="h-8 w-8 mr-2">
+                          {collaborator.user.profile_picture_data ? (
+                            <AvatarImage 
+                              src={collaborator.user.profile_picture_data} 
+                              alt={`${collaborator.user.first_name} ${collaborator.user.last_name}`} 
+                            />
+                          ) : collaborator.user.avatar ? (
+                            <AvatarImage 
+                              src={collaborator.user.avatar} 
+                              alt={`${collaborator.user.first_name} ${collaborator.user.last_name}`} 
+                            />
+                          ) : (
+                            <AvatarFallback>
+                              {collaborator.user.first_name.charAt(0)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-sm">
+                            {`${collaborator.user.first_name} ${collaborator.user.last_name}`}
+                          </div>
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            {collaborator.user.role && (
+                              <span className="mr-1">{collaborator.user.role}</span>
+                            )}
+                            {collaborator.is_admin && (
+                              <Badge variant="secondary" className="text-xs py-0 h-4">Admin</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No collaborators for this event.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="attendees">
+            <Card>
+              <CardHeader>
+                <CardTitle>Event Attendees</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AttendeesList attendees={attendees} />
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           {/* Media Upload Section (for teachers only) */}
           {isTeacher && event.created_by.id === user?.id && (

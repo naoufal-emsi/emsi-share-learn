@@ -32,7 +32,10 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   canManage,
   onCollaboratorUpdated
 }) => {
+  // Only allow administration users to manage collaborators
   const handleToggleAdmin = async (collaborator: Collaborator) => {
+    if (!canManage) return;
+    
     try {
       await eventsAPI.updateCollaborator(
         eventId,
@@ -48,6 +51,8 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   };
 
   const handleRemoveCollaborator = async (collaborator: Collaborator) => {
+    if (!canManage) return;
+    
     if (!confirm(`Are you sure you want to remove ${collaborator.user.first_name} ${collaborator.user.last_name} as a collaborator?`)) {
       return;
     }
@@ -116,12 +121,14 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
                   checked={collaborator.is_admin}
                   onCheckedChange={() => handleToggleAdmin(collaborator)}
                   size="sm"
+                  disabled={!canManage}
                 />
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleRemoveCollaborator(collaborator)}
+                disabled={!canManage}
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
