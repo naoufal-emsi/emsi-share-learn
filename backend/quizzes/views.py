@@ -1,14 +1,14 @@
-
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from django.http import FileResponse, Http404
+from django.db.models import Count
 from .models import Quiz, Question, Option, QuizAttempt, Answer, QuizResource
 from .serializers import (
     QuizSerializer, QuizDetailSerializer, QuestionSerializer, 
     QuizSubmitSerializer, QuizResultSerializer, QuizResourceSerializer,
-    QuizAttemptDetailSerializer # Add this line
+    QuizAttemptDetailSerializer
 )
 from rooms.permissions import IsOwnerOrReadOnly
 
@@ -67,25 +67,29 @@ class QuizViewSet(viewsets.ModelViewSet):
         serializer = QuizSubmitSerializer(data=request.data)
         
         if serializer.is_valid():
-            # Create or get the quiz attempt
-            attempt, created = QuizAttempt.objects.get_or_create(
+            # Count only completed attempts
+            completed_attempts = QuizAttempt.objects.filter(
                 quiz=quiz,
                 student=request.user,
-                defaults={'start_time': timezone.now()}
-            )
+                status='completed'
+            ).count()
             
-            if not created and attempt.end_time:
+            if completed_attempts >= quiz.max_attempts:
                 return Response(
-                    {"error": "You have already completed this quiz"}, 
+                    {"error": f"You have reached the maximum number of attempts ({quiz.max_attempts}) for this quiz"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            
+            # Create a new quiz attempt
+            attempt = QuizAttempt.objects.create(
+                quiz=quiz,
+                student=request.user,
+                start_time=timezone.now()
+            )
             
             # Process answers
             correct_count = 0
             total_questions = quiz.questions.count()
-            
-            # Delete any existing answers for this attempt
-            Answer.objects.filter(attempt=attempt).delete()
             
             # Process new answers
             for answer_data in serializer.validated_data['answers']:
@@ -197,6 +201,32 @@ class QuizViewSet(viewsets.ModelViewSet):
         quiz.save()
         serializer = self.get_serializer(quiz)
         return Response(serializer.data)
+        
+    @action(detail=True, methods=['get'], url_path='student-results')
+    def get_student_results(self, request, pk=None):
+        quiz = self.get_object()
+        user = request.user
+        
+        # Get all completed attempts for this student on this quiz
+        attempts = QuizAttempt.objects.filter(
+            quiz=quiz,
+            student=user,
+            status='completed'
+        ).order_by('-score')  # Order by highest score first
+        
+        if not attempts.exists():
+            return Response({"detail": "No attempts found for this quiz"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get the best attempt
+        best_attempt = attempts.first()
+        serializer = QuizResultSerializer(best_attempt)
+        
+        return Response({
+            "best_attempt": serializer.data,
+            "total_attempts": attempts.count(),
+            "max_attempts": quiz.max_attempts,
+            "attempts_remaining": max(0, quiz.max_attempts - attempts.count())
+        })
 
 class QuestionViewSet(viewsets.ModelViewSet):
     serializer_class = QuestionSerializer

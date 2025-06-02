@@ -35,8 +35,8 @@ class ResourceSerializer(serializers.ModelSerializer):
         model = Resource
         fields = ['id', 'title', 'description', 'file_data', 'file_name', 'file_type',
                  'type', 'category', 'category_name', 'room', 'uploaded_by', 'uploaded_at', 
-                 'file_size', 'download_count']
-        read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'file_size', 'download_count', 'category_name']
+                 'file_size', 'bookmark_count']
+        read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'file_size', 'bookmark_count', 'category_name']
         extra_kwargs = {
             'room': {'required': False, 'allow_null': True},
             'category': {'required': False, 'allow_null': True}

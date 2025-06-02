@@ -36,14 +36,14 @@ const Analytics: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Redirect if not a teacher
+  // Redirect if not authorized
   React.useEffect(() => {
-    if (user?.role !== 'teacher') {
+    if (user?.role !== 'teacher' && user?.role !== 'admin' && user?.role !== 'administration') {
       navigate('/');
     }
   }, [user, navigate]);
   
-  if (user?.role !== 'teacher') {
+  if (user?.role !== 'teacher' && user?.role !== 'admin' && user?.role !== 'administration') {
     return null;
   }
   

@@ -57,12 +57,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleSidebar }) => {
     ...(user?.role === 'student' ? [
       { name: 'My Rooms', href: '/student-rooms', icon: DoorOpen },
     ] : []),
-    ...(user?.role === 'teacher' || user?.role === 'admin' ? [
+    ...(user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'administration' ? [
       { name: 'Analytics', href: '/analytics', icon: BarChart },
     ] : []),
     { name: 'Forum', href: '/forum', icon: MessageSquare },
     { name: 'Events', href: '/events', icon: Calendar },
-    ...(user?.role === 'admin' ? [
+    ...(user?.role === 'admin' || user?.role === 'administration' ? [
       { name: 'Users', href: '/users', icon: Users },
       { name: 'Settings', href: '/settings', icon: Settings },
     ] : []),
@@ -84,7 +84,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleSidebar }) => {
           <Avatar className="w-10 h-10 shadow-md hover:shadow-lg transition-all duration-300 ring-2 ring-primary/20 dark:ring-primary-dark/30 hover:ring-primary/40 dark:hover:ring-primary-dark/50">
             <AvatarImage src={user?.profilePicture || user?.avatar} alt={user?.name || ''} />
             <AvatarFallback className="bg-gradient-to-r from-primary to-primary-light dark:from-primary-dark dark:to-primary text-white">
-              {user?.role === 'admin' ? 'A' : user?.role === 'teacher' ? 'T' : 'S'}
+              {user?.role === 'admin' ? 'A' : user?.role === 'administration' ? 'AD' : user?.role === 'teacher' ? 'T' : 'S'}
             </AvatarFallback>
           </Avatar>
           {!collapsed && (

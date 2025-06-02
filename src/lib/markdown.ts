@@ -27,9 +27,9 @@ marked.setOptions({
 /**
  * Renders markdown content to sanitized HTML
  */
-export async function renderMarkdown(content: string): Promise<string> {
-  // Convert markdown to HTML
-  const rawHtml = await marked(content); // <--- Add 'await' here
+export function renderMarkdown(content: string): string {
+  // Convert markdown to HTML synchronously
+  const rawHtml = marked.parse(content);
   
   // Sanitize HTML to prevent XSS attacks
   const sanitizedHtml = DOMPurify.sanitize(rawHtml, {

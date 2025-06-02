@@ -68,6 +68,7 @@ interface Topic {
   };
   tags: string;
   view_count: number;
+  like_count: number;
   created_at: string;
   is_solved: boolean;
   status: string;
@@ -100,6 +101,8 @@ const TopicDetail: React.FC = () => {
     }
   }, [location]);
 
+  const [isLiked, setIsLiked] = useState(false);
+  
   useEffect(() => {
     const fetchTopicDetails = async () => {
       if (!topicId) return;
@@ -113,14 +116,18 @@ const TopicDetail: React.FC = () => {
         const topicData = await forumsAPI.getTopic(topicId);
         setTopic(topicData);
         
-        // Get posts for this topic
+        // Get posts for this topic directly from database
         const postsData = await forumsAPI.getPosts(topicId, searchText);
+        console.log('Posts loaded from database:', postsData);
         setPosts(postsData.results || []);
         
-        // Check subscription status
+        // Check subscription and like status
         if (user) {
           const subscriptionStatus = await forumsAPI.getSubscriptionStatus(topicId);
           setIsSubscribed(subscriptionStatus.subscribed);
+          
+          const likeStatus = await forumsAPI.getLikeStatus(topicId);
+          setIsLiked(likeStatus.liked);
         }
       } catch (error) {
         console.error('Failed to fetch topic details:', error);
@@ -151,6 +158,7 @@ const TopicDetail: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // Simple post data with just the required fields
       const postData = {
         topic: topic.id,
         content: newReply.trim(),
@@ -160,24 +168,30 @@ const TopicDetail: React.FC = () => {
         attachment_size: selectedFile?.file.size || null
       };
 
-      console.log('Creating new post with data:', {
-        ...postData,
-        attachment_base64: postData.attachment_base64 ? '[base64 data]' : null
-      });
-
-      const response = await forumsAPI.createPost(postData);
+      // Submit the post and wait for the response
+      await forumsAPI.createPost(postData);
       
-      if (!response || !response.id) {
-        throw new Error('Invalid response from server');
-      }
-      
-      setPosts([...posts, response]);
+      // Reset form
       setNewReply('');
       setSelectedFile(null);
+      
+      // Wait a moment to ensure the post is saved in the database
+      setTimeout(async () => {
+        // Reload posts from database
+        if (topicId) {
+          try {
+            const freshPosts = await forumsAPI.getPosts(topicId);
+            setPosts(freshPosts.results || []);
+          } catch (err) {
+            console.error('Error refreshing posts:', err);
+          }
+        }
+      }, 500);
+      
       toast.success("Reply posted successfully");
     } catch (error) {
       console.error('Failed to submit reply:', error);
-      toast.error("Failed to post reply. Please check your connection and try again.");
+      toast.error("Failed to post reply. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -292,6 +306,40 @@ const TopicDetail: React.FC = () => {
       toast.error("Failed to update subscription. Please check your connection and try again.");
     }
   };
+  
+  const handleLikeTopic = async () => {
+    if (!topic) {
+      toast.error("Topic information not available");
+      return;
+    }
+    
+    if (!user) {
+      toast.error("Please log in to like topics");
+      return;
+    }
+    
+    try {
+      const response = await forumsAPI.likeTopic(topic.id.toString());
+      
+      if (!response || response.status !== 'success') {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Update the topic with the new like count and liked status
+      setTopic({
+        ...topic,
+        like_count: response.like_count
+      });
+      
+      // Toggle liked state
+      setIsLiked(response.liked);
+      
+      toast.success(response.liked ? "Topic liked!" : "Topic unliked!");
+    } catch (error) {
+      console.error('Failed to like topic:', error);
+      toast.error("Failed to update topic like. Please check your connection and try again.");
+    }
+  };
 
   const handleDownloadAttachment = async (type: 'topic' | 'post', id: number) => {
     try {
@@ -373,6 +421,12 @@ const TopicDetail: React.FC = () => {
 
   // Function to render content with highlighted search terms
   const renderContent = (content: string) => {
+    // Ensure content is a string
+    if (typeof content !== 'string') {
+      console.error('Invalid content type:', typeof content, content);
+      return <div>Error displaying content</div>;
+    }
+    
     if (searchText) {
       return <HighlightedText text={content} highlight={searchText} />;
     }
@@ -431,11 +485,24 @@ const TopicDetail: React.FC = () => {
                 <Eye className="h-3 w-3 mr-1" />
                 <span>{topic.view_count} views</span>
                 <span className="mx-1">•</span>
+                <ThumbsUp className="h-3 w-3 mr-1" />
+                <span>{topic.like_count} likes</span>
+                <span className="mx-1">•</span>
                 <span>{new Date(topic.created_at).toLocaleDateString()}</span>
               </div>
             </div>
             
             <div className="flex gap-2">
+              {user && (
+                <Button 
+                  variant={isLiked ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleLikeTopic()}
+                >
+                  <ThumbsUp className="h-3 w-3 mr-1" />
+                  {isLiked ? 'Liked' : 'Like Topic'}
+                </Button>
+              )}
               {isTopicCreator && (
                 <Button 
                   variant="outline" 
@@ -552,7 +619,7 @@ const TopicDetail: React.FC = () => {
                         )}
                       </div>
                       <div className="mt-2 prose max-w-none prose-sm">
-                        {renderContent(post.content)}
+                        {typeof post.content === 'string' ? renderContent(post.content) : 'Loading...'}
                       </div>
                       
                       {post.has_attachment && (
@@ -582,6 +649,7 @@ const TopicDetail: React.FC = () => {
                             size="sm" 
                             onClick={() => handleVote(post.id, 'upvote')}
                             className={`h-7 px-2 ${post.user_vote === 'upvote' ? 'text-green-600' : ''}`}
+                            title="Like this comment"
                           >
                             <ThumbsUp className="h-3 w-3 mr-1" />
                             {post.upvotes}
@@ -591,6 +659,7 @@ const TopicDetail: React.FC = () => {
                             size="sm" 
                             onClick={() => handleVote(post.id, 'downvote')}
                             className={`h-7 px-2 ${post.user_vote === 'downvote' ? 'text-red-600' : ''}`}
+                            title="Dislike this comment"
                           >
                             <ThumbsDown className="h-3 w-3 mr-1" />
                             {post.downvotes}

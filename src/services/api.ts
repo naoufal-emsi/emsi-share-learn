@@ -99,6 +99,49 @@ export const authAPI = {
     }
   },
   
+  getAllUsers: async () => {
+    try {
+      const response = await apiRequest('/users/');
+      return response;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  },
+  
+  deleteUser: async (userId: string) => {
+    try {
+      const response = await apiRequest(`/users/${userId}/`, {
+        method: 'DELETE',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
+  },
+  
+  createUser: async (userData: {
+    username: string;
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+    role: 'student' | 'teacher' | 'admin' | 'administration';
+    profile_picture?: string;
+  }) => {
+    try {
+      const response = await apiRequest('/users/create/', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  },
+  
   register: async (userData: {
     username: string;
     email: string;
@@ -262,6 +305,24 @@ export const resourcesAPI = {
       count: response?.count || 0
     };
   },
+  
+  // Chunked upload functions for large resources
+  // NOTE: These endpoints don't exist in the backend yet
+  // They are kept here for future implementation
+  createResourceUploadSession: async (metadata: any) => {
+    console.warn('createResourceUploadSession endpoint not implemented in backend');
+    throw new Error('Upload session endpoint not implemented');
+  },
+
+  uploadResourceChunk: async (sessionId: string, data: any) => {
+    console.warn('uploadResourceChunk endpoint not implemented in backend');
+    throw new Error('Upload chunk endpoint not implemented');
+  },
+
+  finalizeResourceUpload: async (sessionId: string) => {
+    console.warn('finalizeResourceUpload endpoint not implemented in backend');
+    throw new Error('Finalize upload endpoint not implemented');
+  },
 
   getAllResources: async () => {
     const response = await apiRequest('/resources/all/');
@@ -292,6 +353,26 @@ export const resourcesAPI = {
     console.log('FormData contents:');
     for (let [key, value] of formData.entries()) {
       console.log(`${key}:`, value);
+    }
+    
+    // Map resource types to valid backend types
+    const typeMap: Record<string, string> = {
+      'archive': 'document', // Map 'archive' to 'document' which is valid in backend
+      'code': 'code',
+      'document': 'document',
+      'video': 'video',
+      'other': 'other'
+    };
+    
+    // Check if the file is a ZIP file and map the type correctly
+    const fileData = formData.get('file_data');
+    const currentType = formData.get('type') as string;
+    
+    if (currentType && typeMap[currentType]) {
+      formData.set('type', typeMap[currentType]);
+    } else if (fileData instanceof File && fileData.name.toLowerCase().endsWith('.zip')) {
+      // Default to document type for ZIP files
+      formData.set('type', 'document');
     }
     
     const response = await fetch(`${API_BASE_URL}/resources/`, {
@@ -325,6 +406,12 @@ export const resourcesAPI = {
     }
 
     return response.blob();
+  },
+
+  bookmarkResource: async (resourceId: string) => {
+    return apiRequest(`/resources/${resourceId}/bookmark/`, {
+      method: 'POST',
+    });
   },
 
   deleteResource: async (resourceId: string, roomId?: string) => {
@@ -402,10 +489,41 @@ export const eventsAPI = {
     room?: number;
     image_upload?: string;
     video_upload?: string;
+    trailer_upload?: string;
+    trailer_type?: 'image' | 'video' | null;
   }>) => {
     return apiRequest(`/events/${eventId}/`, {
       method: 'PATCH',
       body: JSON.stringify(eventData),
+    });
+  },
+  
+  searchTeachers: async (query: string) => {
+    return apiRequest(`/events/search_teachers/?q=${encodeURIComponent(query)}`);
+  },
+  
+  getCollaborators: async (eventId: string) => {
+    return apiRequest(`/events/${eventId}/collaborators/`);
+  },
+  
+  addCollaborator: async (eventId: string, userId: string, isAdmin: boolean = false) => {
+    return apiRequest(`/events/${eventId}/add_collaborator/`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, is_admin: isAdmin }),
+    });
+  },
+  
+  removeCollaborator: async (eventId: string, collaboratorId: string) => {
+    return apiRequest(`/events/${eventId}/remove_collaborator/`, {
+      method: 'POST',
+      body: JSON.stringify({ collaborator_id: collaboratorId }),
+    });
+  },
+  
+  updateCollaborator: async (eventId: string, collaboratorId: string, isAdmin: boolean) => {
+    return apiRequest(`/events/${eventId}/update_collaborator/`, {
+      method: 'POST',
+      body: JSON.stringify({ collaborator_id: collaboratorId, is_admin: isAdmin }),
     });
   },
   
@@ -442,6 +560,13 @@ export const quizzesAPI = {
   getPublicQuizzes: async () => {
     return apiRequest('/quizzes/?public=true');
   },
+
+  getStudentResults: async (quizId: string) => {
+    return apiRequest(`/quizzes/${quizId}/student-results/`);
+  },
+  
+
+
   
   getQuizzes: async (roomId: string) => {
     return apiRequest(`/quizzes/?room=${roomId}`);
@@ -457,6 +582,13 @@ export const quizzesAPI = {
       body: JSON.stringify(quizData),
     });
   },
+
+  deleteQuiz: async (quizId: string) => {
+    return apiRequest(`/quizzes/${quizId}/`, {
+      method: 'DELETE',
+    });
+  },
+  
   
   submitQuiz: async (quizId: string, answers: any[]) => {
     return apiRequest(`/quizzes/${quizId}/submit/`, {
@@ -742,26 +874,60 @@ export const forumsAPI = {
     }
   },
   
+  likeTopic: async (topicId: string) => {
+    try {
+      console.log(`Toggling like for topic ${topicId}`);
+      const response = await apiRequest(`/forums/topics/${topicId}/like_topic/`, {
+        method: 'POST',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error in likeTopic:', error);
+      throw error;
+    }
+  },
+  
+  getLikeStatus: async (topicId: string) => {
+    try {
+      const response = await apiRequest(`/forums/topics/${topicId}/like_status/`);
+      return response;
+    } catch (error) {
+      console.error(`Error fetching like status for topic ${topicId}:`, error);
+      return { liked: false };
+    }
+  },
+  
   getPosts: async (topicId: string, search?: string) => {
     let endpoint = `/forums/posts/?topic=${topicId}`;
     if (search) {
       endpoint += `&search=${encodeURIComponent(search)}`;
     }
     try {
+      // Direct database query - simple and straightforward
       const response = await apiRequest(endpoint);
+      console.log('Posts from database:', response);
       
-      // Ensure consistent response format
+      // Process the response to ensure content is a string
+      let results = [];
       if (Array.isArray(response)) {
-        return { results: response, count: response.length };
+        results = response.map(post => ({
+          ...post,
+          content: String(post.content) // Ensure content is a string
+        }));
       } else if (response && response.results) {
-        return response;
-      } else if (response) {
-        return { results: [response], count: 1 };
+        results = response.results.map(post => ({
+          ...post,
+          content: String(post.content) // Ensure content is a string
+        }));
       }
-      return { results: [], count: 0 };
+      
+      return { 
+        results: results, 
+        count: results.length 
+      };
     } catch (error) {
       console.error('Error fetching posts:', error);
-      throw error; // Propagate error to be handled by the component
+      return { results: [], count: 0 }; // Return empty results on error
     }
   },
   
@@ -775,44 +941,21 @@ export const forumsAPI = {
     attachment_size?: number | null;
   }) => {
     try {
-      console.log('Sending post data to server:', {
+      // Ensure content is a string
+      const sanitizedData = {
         ...postData,
-        attachment_base64: postData.attachment_base64 ? '[base64 data]' : null
-      });
+        content: String(postData.content)
+      };
       
-      // Validate topic ID exists in PostgreSQL
-      if (!postData.topic || isNaN(Number(postData.topic))) {
-        throw new Error('Invalid topic ID');
-      }
-      
-      // Validate parent post ID if provided
-      if (postData.parent_post && isNaN(Number(postData.parent_post))) {
-        throw new Error('Invalid parent post ID');
-      }
-      
+      // Wait for the response
       const response = await apiRequest('/forums/posts/', {
         method: 'POST',
-        body: JSON.stringify(postData),
+        body: JSON.stringify(sanitizedData),
       });
       
-      if (!response || !response.id) {
-        throw new Error('Invalid response from server when creating post');
-      }
-      
-      console.log('Server response for post creation:', response);
       return response;
     } catch (error) {
-      console.error('Error in createPost:', error);
-      
-      // Handle specific PostgreSQL errors
-      if (error instanceof Error) {
-        if (error.message.includes('foreign key')) {
-          throw new Error('The topic or parent post no longer exists');
-        } else if (error.message.includes('connection')) {
-          throw new Error('Database connection error. Please try again later.');
-        }
-      }
-      
+      console.error('Error creating post:', error);
       throw error;
     }
   },
@@ -918,5 +1061,37 @@ export const notificationsAPI = {
       console.error('Error marking all notifications as read:', error);
       throw error;
     }
+  }
+};
+
+
+// Chunked upload API functions
+export const uploadAPI = {
+  createUploadSession: async (eventId: string, metadata: {
+    filename: string;
+    filesize: number;
+    filetype: string;
+    chunks: number;
+  }) => {
+    return apiRequest(`/events/${eventId}/upload-session/`, {
+      method: 'POST',
+      body: JSON.stringify(metadata),
+    });
+  },
+
+  uploadChunk: async (sessionId: string, data: {
+    chunk: string;
+    chunkNumber: number;
+  }) => {
+    return apiRequest(`/upload-sessions/${sessionId}/chunk/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  finalizeUpload: async (sessionId: string) => {
+    return apiRequest(`/upload-sessions/${sessionId}/finalize/`, {
+      method: 'POST',
+    });
   }
 };

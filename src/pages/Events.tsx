@@ -42,12 +42,17 @@ interface Event {
     status: 'attending' | 'maybe' | 'declined';
     id: number;
   } | null;
+  image_data?: string;
+  image_base64?: string;
+  image_name?: string;
+  image_type?: string;
 }
 
 const Events: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isTeacher = user?.role === 'teacher';
+  const canCreateEvents = user?.role === 'admin' || user?.role === 'administration';
   
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,35 +66,42 @@ const Events: React.FC = () => {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      let params = {};
+      // Fetch all events to ensure we get everything including images
+      const response = await eventsAPI.getEvents({});
+      console.log('All events response:', response);
       
+      let filteredEvents = [...response];
+      
+      // Apply filters based on active tab
       switch (activeTab) {
         case 'upcoming':
-          params = { period: 'week' };
+          const now = new Date();
+          filteredEvents = filteredEvents.filter(event => 
+            new Date(event.start_time) > now
+          );
           break;
         case 'past':
-          params = { period: 'past' };
+          const today = new Date();
+          filteredEvents = filteredEvents.filter(event => 
+            new Date(event.end_time) < today
+          );
           break;
         case 'registered':
-          params = { attendance: 'attending' };
+          filteredEvents = filteredEvents.filter(event => 
+            event.user_attendance && event.user_attendance.status === 'attending'
+          );
           break;
         case 'managed':
-          // Only fetch events created by the current user
-          // This will be handled on the frontend since we need to filter by created_by
-          params = {};
+          if (isTeacher) {
+            filteredEvents = filteredEvents.filter(event => 
+              event.created_by.id === user?.id
+            );
+          }
           break;
       }
       
-      const response = await eventsAPI.getEvents(params);
-      console.log('Events response:', response);
-      
-      let eventsList = response;
-      if (activeTab === 'managed' && isTeacher) {
-        // Filter events created by the current user
-        eventsList = response.filter((event: Event) => event.created_by.id === user?.id);
-      }
-      
-      setEvents(eventsList);
+      console.log(`Filtered ${filteredEvents.length} events for tab: ${activeTab}`);
+      setEvents(filteredEvents);
     } catch (error) {
       console.error('Failed to fetch events:', error);
       toast.error('Failed to load events');
@@ -155,7 +167,7 @@ const Events: React.FC = () => {
             </p>
           </div>
           
-          {isTeacher && (
+          {canCreateEvents && (
             <Button 
               className="bg-primary hover:bg-primary-dark"
               onClick={() => setCreateDialogOpen(true)}
@@ -171,7 +183,7 @@ const Events: React.FC = () => {
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
             <TabsTrigger value="past">Past</TabsTrigger>
             <TabsTrigger value="registered">Registered</TabsTrigger>
-            {isTeacher && (
+            {(isTeacher || canCreateEvents) && (
               <TabsTrigger value="managed">Managed</TabsTrigger>
             )}
           </TabsList>
@@ -251,6 +263,15 @@ const Events: React.FC = () => {
                         >
                           Details
                         </Button>
+                        {user?.role === 'administration' && (
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate(`/events/${event.id}/edit`)}
+                          >
+                            Edit
+                          </Button>
+                        )}
                         {event.user_attendance ? (
                           <Button 
                             size="sm" 
@@ -431,7 +452,7 @@ const Events: React.FC = () => {
             )}
           </TabsContent>
           
-          {isTeacher && (
+          {(isTeacher || canCreateEvents) && (
             <TabsContent value="managed" className="mt-0 space-y-6">
               {loading ? (
                 <div className="flex justify-center items-center py-12">
@@ -449,7 +470,9 @@ const Events: React.FC = () => {
                       {/* Same card content as above */}
                       <div className="relative h-48 overflow-hidden">
                         <img 
-                          src={getEventImage(event.event_type)} 
+                          src={event.image_base64 
+                            ? `data:${event.image_type || 'image/jpeg'};base64,${event.image_base64}` 
+                            : getEventImage(event.event_type)} 
                           alt={event.title} 
                           className="w-full h-full object-cover"
                         />
@@ -497,22 +520,33 @@ const Events: React.FC = () => {
                         <div className="text-sm">
                           <Badge variant="outline" className="mr-2">You created this</Badge>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={async () => {
-                            try {
-                              await eventsAPI.deleteEvent(event.id.toString());
-                              toast.success('Event deleted');
-                              fetchEvents();
-                            } catch (error) {
-                              console.error('Failed to delete event:', error);
-                              toast.error('Failed to delete event');
-                            }
-                          }}
-                        >
-                          Delete
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              navigate(`/events/${event.id}/edit`);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={async () => {
+                              try {
+                                await eventsAPI.deleteEvent(event.id.toString());
+                                toast.success('Event deleted');
+                                fetchEvents();
+                              } catch (error) {
+                                console.error('Failed to delete event:', error);
+                                toast.error('Failed to delete event');
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </CardFooter>
                     </Card>
                   ))}
@@ -523,7 +557,7 @@ const Events: React.FC = () => {
         </Tabs>
       </div>
       
-      {isTeacher && (
+      {canCreateEvents && (
         <CreateEventDialog 
           open={createDialogOpen} 
           onOpenChange={setCreateDialogOpen}

@@ -169,6 +169,7 @@ const NewTopicDialog: React.FC<NewTopicDialogProps> = ({ open, onOpenChange, roo
                     }
                   }}
                   onFocus={() => setShowCategoryDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
                   placeholder="Type to search for a category"
                   className="border-0 focus-visible:ring-0"
                   autoComplete="off"
@@ -190,12 +191,12 @@ const NewTopicDialog: React.FC<NewTopicDialogProps> = ({ open, onOpenChange, roo
               </div>
               
               {showCategoryDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
                   {filteredCategories.length > 0 ? (
                     filteredCategories.map(category => (
                       <div
                         key={category.id}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                        className="px-4 py-2 hover:bg-muted cursor-pointer text-foreground"
                         onClick={() => handleCategorySelect(category.id.toString(), category.name)}
                       >
                         {category.name}

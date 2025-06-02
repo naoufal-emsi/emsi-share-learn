@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import ForumCategory, ForumTopic, ForumPost, ForumVote, ForumSubscription, ForumAttachment
+from .models import ForumCategory, ForumTopic, ForumPost, ForumVote, ForumSubscription, ForumAttachment, TopicLike
 import base64
 import re
 
@@ -43,23 +43,20 @@ class ForumTopicSerializer(serializers.ModelSerializer):
         model = ForumTopic
         fields = [
             'id', 'title', 'content', 'category', 'category_id', 'room',
-            'created_by', 'status', 'is_announcement', 'view_count',
+            'created_by', 'status', 'is_announcement', 'view_count', 'like_count',
             'is_solved', 'solved_by', 'tags', 'created_at', 'updated_at',
             'last_activity', 'posts_count', 'votes_count', 'attachment_base64',
             'attachment_name', 'attachment_type', 'attachment_size', 'has_attachment',
             'attachment_url'
         ]
-        read_only_fields = ['created_by', 'view_count', 'is_solved', 'solved_by']
+        read_only_fields = ['created_by', 'view_count', 'like_count', 'is_solved', 'solved_by']
     
     def get_posts_count(self, obj):
         return obj.posts.count()
     
     def get_votes_count(self, obj):
-        # Sum of upvotes across all posts in this topic
-        return sum(
-            post.votes.filter(vote_type='upvote').count() 
-            for post in obj.posts.all()
-        )
+        # Return the like_count directly instead of calculating from post votes
+        return obj.like_count
     
     def get_has_attachment(self, obj):
         return obj.attachment_data is not None
@@ -222,3 +219,9 @@ class ForumAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = ForumAttachment
         fields = ['id', 'post', 'file', 'filename', 'file_size', 'uploaded_at']
+        
+class TopicLikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TopicLike
+        fields = ['id', 'topic', 'user', 'created_at']
+        read_only_fields = ['user']

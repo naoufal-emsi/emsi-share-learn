@@ -3,14 +3,15 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.http import HttpResponse
 from django.db.models import Q
-from .models import ForumCategory, ForumTopic, ForumPost, ForumVote, ForumSubscription, ForumAttachment
+from .models import ForumCategory, ForumTopic, ForumPost, ForumVote, ForumSubscription, ForumAttachment, TopicLike
 from .serializers import (
     ForumCategorySerializer, 
     ForumTopicSerializer, 
     ForumPostSerializer,
     ForumVoteSerializer,
     ForumSubscriptionSerializer,
-    ForumAttachmentSerializer
+    ForumAttachmentSerializer,
+    TopicLikeSerializer
 )
 import logging
 from datetime import datetime
@@ -236,6 +237,35 @@ class ForumTopicViewSet(viewsets.ModelViewSet):
         topic.view_count += 1
         topic.save()
         return Response({'status': 'success', 'view_count': topic.view_count})
+        
+    @action(detail=True, methods=['post'])
+    def like_topic(self, request, pk=None):
+        topic = self.get_object()
+        user = request.user
+        
+        # Check if user already liked this topic
+        like, created = TopicLike.objects.get_or_create(topic=topic, user=user)
+        
+        if created:
+            # User hasn't liked this topic before, increment count
+            topic.like_count += 1
+            topic.save()
+            return Response({'status': 'success', 'liked': True, 'like_count': topic.like_count})
+        else:
+            # User already liked this topic, remove the like
+            like.delete()
+            topic.like_count = max(0, topic.like_count - 1)  # Ensure count doesn't go below 0
+            topic.save()
+            return Response({'status': 'success', 'liked': False, 'like_count': topic.like_count})
+            
+    @action(detail=True, methods=['get'])
+    def like_status(self, request, pk=None):
+        if not request.user.is_authenticated:
+            return Response({'liked': False})
+            
+        topic = self.get_object()
+        is_liked = TopicLike.objects.filter(topic=topic, user=request.user).exists()
+        return Response({'liked': is_liked})
 
 class ForumPostViewSet(viewsets.ModelViewSet):
     queryset = ForumPost.objects.all()

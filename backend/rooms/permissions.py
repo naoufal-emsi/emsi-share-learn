@@ -11,11 +11,13 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
             return True
 
         # Write permissions are only allowed to the owner or admin
-        # Check if the object has an 'uploaded_by' attribute (for resources) or 'owner' (for rooms)
+        # Check if the object has an 'uploaded_by' attribute (for resources), 'owner' (for rooms), or 'created_by' (for quizzes)
         if hasattr(obj, 'uploaded_by'):
             return obj.uploaded_by == request.user or request.user.role == 'admin'
         elif hasattr(obj, 'owner'):
             return obj.owner == request.user or request.user.role == 'admin'
+        elif hasattr(obj, 'created_by'):
+            return obj.created_by == request.user or request.user.role == 'admin'
         return False # Default to false if neither attribute exists
 class IsAdminOrTargetTeacher(permissions.BasePermission):
     def has_permission(self, request, view):

@@ -21,7 +21,7 @@ type User = {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'teacher' | 'admin';
+  role: 'student' | 'teacher' | 'admin' | 'administration';
   avatar?: string;
   profilePicture?: string;
 };

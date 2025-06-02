@@ -15,6 +15,17 @@ import { Copy, FileText, BookOpen, Download, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import Quiz from './Quiz'; // Import the Quiz component
 import { Toggle } from '@/components/ui/toggle';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 
 type Option = {
@@ -37,6 +48,8 @@ type Quiz = {
   questions_count: number;
   resources_count: number;
   is_active: boolean; // Add this line
+  student_attempts?: number;  // Add this line
+  max_attempts?: number;
 };
 
 interface Room {
@@ -70,6 +83,26 @@ const RoomDetails: React.FC = () => {
     setSelectedQuizId(quizId);
     setShowQuizModal(true);
   };
+
+  const handleQuizDeleted = async (quizId: string) => {
+    try {
+      await quizzesAPI.deleteQuiz(quizId); // Don't try to use the response
+      setQuizzes(prev => prev.filter(quiz => quiz.id !== quizId));
+      toast({
+        title: "Success",
+        description: "Quiz deleted successfully",
+      });
+    } catch (error) {
+      console.error('Failed to delete quiz:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete quiz",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  
 
   useEffect(() => {
     const fetchRoomData = async () => {
@@ -317,13 +350,30 @@ const RoomDetails: React.FC = () => {
                           Download
                         </Button>
                         {isTeacher && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteResource(resource.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the resource and remove its data from our servers.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteResource(resource.id)}>
+                                  Continue
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         )}
                       </div>
                     </CardContent>
@@ -351,14 +401,15 @@ const RoomDetails: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {quizzes.map((quiz) => (
                   <QuizCard
-                    key={quiz.id}
-                    quiz={quiz}
-                    onDownloadResource={downloadResource}
-                    roomId={roomId}
-                    onTakeQuiz={handleTakeQuiz}
-                    isTeacher={isTeacher} // Pass isTeacher prop
-                    onQuizUpdated={handleQuizUpdated} // Pass update callback
-                  />
+                  key={quiz.id}
+                  quiz={quiz}
+                  onDownloadResource={downloadResource}
+                  roomId={roomId}
+                  onTakeQuiz={handleTakeQuiz}
+                  isTeacher={isTeacher}
+                  onQuizUpdated={handleQuizUpdated}
+                  onQuizDeleted={handleQuizDeleted}
+                />
                 ))}
               </div>
             )}
@@ -384,14 +435,15 @@ const RoomDetails: React.FC = () => {
   );
 };
 
-const QuizCard: React.FC<{ 
-  quiz: Quiz; 
+const QuizCard: React.FC<{
+  quiz: Quiz;
   onDownloadResource: (resourceId: string, filename: string) => void;
-  roomId?: string; 
-  onTakeQuiz: (quizId: string) => void; 
-  isTeacher: boolean; // Add isTeacher prop
-  onQuizUpdated: (updatedQuiz: Quiz) => void; // Add update callback prop
-}> = ({ quiz, onDownloadResource, roomId, onTakeQuiz, isTeacher, onQuizUpdated }) => {
+  roomId?: string;
+  onTakeQuiz: (quizId: string) => void;
+  isTeacher: boolean;
+  onQuizUpdated: (updatedQuiz: Quiz) => void;
+  onQuizDeleted?: (quizId: string) => void;
+}> = ({ quiz, onDownloadResource, roomId, onTakeQuiz, isTeacher, onQuizUpdated, onQuizDeleted }) => {
   const [resources, setResources] = useState<any[]>([]);
   const [showResources, setShowResources] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
@@ -399,7 +451,8 @@ const QuizCard: React.FC<{
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
   const [quizResult, setQuizResult] = useState<any>(null);
-  const [isTogglingActive, setIsTogglingActive] = useState(false); // New state for toggle loading
+  const [isTogglingActive, setIsTogglingActive] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   const fetchQuizResources = async () => {
@@ -413,8 +466,7 @@ const QuizCard: React.FC<{
   };
 
   const handleTakeQuiz = async (quizId: string) => {
-    onTakeQuiz(quizId); // Use the new prop to open the modal
-    // Close the current dialog if it's open
+    onTakeQuiz(quizId);
     setSelectedQuiz(null);
     setQuizResult(null);
   };
@@ -424,10 +476,10 @@ const QuizCard: React.FC<{
     try {
       const newIsActive = !quiz.is_active;
       await quizzesAPI.toggleQuizActiveStatus(quiz.id);
-      onQuizUpdated({ ...quiz, is_active: newIsActive }); // Update state in parent
+      onQuizUpdated({ ...quiz, is_active: newIsActive });
       toast({
         title: "Success",
-        description: `Quiz status updated to ${newIsActive ? 'Active' : 'Inactive'}`, 
+        description: `Quiz status updated to ${newIsActive ? 'Active' : 'Inactive'}`,
       });
     } catch (error) {
       console.error('Failed to toggle quiz active status:', error);
@@ -440,6 +492,35 @@ const QuizCard: React.FC<{
       setIsTogglingActive(false);
     }
   };
+
+  const handleDeleteQuiz = async (quizId: string) => {
+    console.log('Attempting to delete quiz with ID:', quizId); // Add this line
+    setIsDeleting(true);
+    try {
+      await quizzesAPI.deleteQuiz(quizId);
+      toast({
+        title: "Success",
+        description: "Quiz deleted successfully",
+      });
+      <AlertDialogAction onClick={() => onQuizDeleted && onQuizDeleted(quiz.id)}>
+        Continue
+      </AlertDialogAction>
+    } catch (error) {
+      console.error('Failed to delete quiz:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete quiz",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Determine if the student can take the quiz or should see results
+  const attemptsExhausted = quiz.student_attempts !== undefined && quiz.max_attempts !== undefined && quiz.student_attempts >= quiz.max_attempts;
+  const canTakeQuiz = quiz.is_active && !attemptsExhausted;
+  const showResultsButton = quiz.is_active && attemptsExhausted;
 
   const handleAnswerSelect = (questionIndex: number, optionIndex: number) => {
     setAnswers(prev => ({
@@ -605,6 +686,36 @@ const QuizCard: React.FC<{
                     'Activate Quiz' // Text for when quiz is inactive
                   )}
                 </Toggle>
+              )}
+
+              {isTeacher && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full mt-2 flex items-center gap-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete Quiz
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the quiz
+                        and remove its data from our servers.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteQuiz(quiz.id)}>
+                        Continue
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </div>
 

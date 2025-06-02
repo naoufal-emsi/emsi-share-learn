@@ -48,7 +48,7 @@ class Resource(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='resources', null=True, blank=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='uploaded_resources')
     file_size = models.BigIntegerField(null=True, blank=True)
-    download_count = models.IntegerField(default=0)
+    bookmark_count = models.IntegerField(default=0)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

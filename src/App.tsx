@@ -17,6 +17,7 @@ import Quiz from "./pages/Quiz";
 import Forum from "./pages/Forum";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
+import EditEvent from "./pages/EditEvent";
 import Analytics from "./pages/Analytics";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/forum/:topicId" element={<Forum />} />
               <Route path="/events" element={<Events />} />
               <Route path="/events/:eventId" element={<EventDetails />} />
+              <Route path="/events/:eventId/edit" element={<EditEvent />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/users" element={<Users />} />
               <Route path="/settings" element={<Settings />} />
