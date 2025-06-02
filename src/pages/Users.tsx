@@ -5,45 +5,96 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { useToast } from "@/hooks/use-toast";
-
-// Mock users data - in a real app, this would come from an API
-const mockUsers = [
-  { id: '1', name: 'Student Demo', email: 'student@emsi.ma', role: 'student', avatar: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?auto=format&fit=crop&q=80&w=100' },
-  { id: '2', name: 'Teacher Demo', email: 'teacher@emsi.ma', role: 'teacher', avatar: 'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?auto=format&fit=crop&q=80&w=100' },
-  { id: '3', name: 'Admin Demo', email: 'admin@emsi.ma', role: 'admin', avatar: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&q=80&w=100' },
-  { id: '4', name: 'Jane Smith', email: 'jane.smith@emsi.ma', role: 'student', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100' },
-  { id: '5', name: 'John Doe', email: 'john.doe@emsi.ma', role: 'teacher', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100' },
-  { id: '6', name: 'Alice Johnson', email: 'alice.johnson@emsi.ma', role: 'student', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100' },
-  { id: '7', name: 'Bob Williams', email: 'bob.williams@emsi.ma', role: 'student', avatar: 'https://images.unsplash.com/photo-1500048993953-d23a436266cf?auto=format&fit=crop&q=80&w=100' },
-];
+import { authAPI } from '@/services/api';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type UserViewMode = 'table' | 'detail';
+
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  avatar?: string;
+  profile_picture_data?: string;
+  username: string;
+}
+
+interface NewUserForm {
+  username: string;
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  role: 'student' | 'teacher' | 'admin' | 'administration';
+}
 
 const Users: React.FC = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState(mockUsers);
-  const [selectedUser, setSelectedUser] = useState<typeof mockUsers[0] | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [viewMode, setViewMode] = useState<UserViewMode>('table');
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newUser, setNewUser] = useState<NewUserForm>({
+    username: '',
+    email: '',
+    password: '',
+    first_name: '',
+    last_name: '',
+    role: 'student'
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Filter users based on search query
-    const filtered = mockUsers.filter((u) => {
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        u.name.toLowerCase().includes(searchLower) ||
-        u.email.toLowerCase().includes(searchLower) ||
-        u.role.toLowerCase().includes(searchLower)
-      );
-    });
-    setFilteredUsers(filtered);
-  }, [searchQuery]);
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const data = await authAPI.getAllUsers();
+        setUsers(data);
+        setFilteredUsers(data);
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load users. Please try again later.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleViewUser = (user: typeof mockUsers[0]) => {
+    fetchUsers();
+  }, [toast]);
+
+  useEffect(() => {
+    // Filter users based on search query
+    if (users.length > 0) {
+      const filtered = users.filter((u) => {
+        const searchLower = searchQuery.toLowerCase();
+        const fullName = `${u.first_name} ${u.last_name}`.toLowerCase();
+        return (
+          fullName.includes(searchLower) ||
+          u.email.toLowerCase().includes(searchLower) ||
+          u.role.toLowerCase().includes(searchLower)
+        );
+      });
+      setFilteredUsers(filtered);
+    }
+  }, [searchQuery, users]);
+
+  const handleViewUser = (user: User) => {
     setSelectedUser(user);
     setViewMode('detail');
   };
@@ -53,14 +104,95 @@ const Users: React.FC = () => {
     setSelectedUser(null);
   };
 
-  const handleAction = (action: string, userId: string) => {
-    toast({
-      title: `${action} user`,
-      description: `You ${action.toLowerCase()} user with ID: ${userId}`,
-    });
+  const handleAction = async (action: string, userId: string) => {
+    try {
+      if (action === 'Edit') {
+        // Navigate to edit page or open modal
+        toast({
+          title: 'Edit User',
+          description: 'Edit functionality will be implemented soon.',
+        });
+      } else if (action === 'Delete') {
+        if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+          await authAPI.deleteUser(userId);
+          toast({
+            title: 'Success',
+            description: 'User deleted successfully.',
+          });
+          
+          // Refresh the users list
+          const data = await authAPI.getAllUsers();
+          setUsers(data);
+          setFilteredUsers(data);
+          
+          // If in detail view, go back to list view
+          if (viewMode === 'detail') {
+            handleBackToList();
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to ${action.toLowerCase()} user:`, error);
+      toast({
+        title: 'Error',
+        description: `Failed to ${action.toLowerCase()} user. Please try again.`,
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewUser(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleRoleChange = (value: string) => {
+    setNewUser(prev => ({ 
+      ...prev, 
+      role: value as 'student' | 'teacher' | 'admin' | 'administration' 
+    }));
+  };
+  
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      await authAPI.createUser(newUser);
+      
+      toast({
+        title: 'Success',
+        description: 'User created successfully.',
+      });
+      
+      // Reset form and close dialog
+      setNewUser({
+        username: '',
+        email: '',
+        password: '',
+        first_name: '',
+        last_name: '',
+        role: 'student'
+      });
+      setIsDialogOpen(false);
+      
+      // Refresh the users list
+      const data = await authAPI.getAllUsers();
+      setUsers(data);
+      setFilteredUsers(data);
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create user. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'administration') {
     return (
       <MainLayout>
         <Card>
@@ -94,24 +226,141 @@ const Users: React.FC = () => {
                   A list of all users in the system.
                 </CardDescription>
               </div>
-              <div className="flex w-full max-w-sm items-center space-x-2 md:w-80">
-                <Input
-                  type="search"
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="md:min-w-64"
-                />
-                <Button type="submit" variant="secondary" size="icon">
-                  <Search className="h-4 w-4" />
-                  <span className="sr-only">Search</span>
-                </Button>
+              <div className="flex items-center space-x-2">
+                <div className="flex w-full max-w-sm items-center space-x-2 md:w-80">
+                  <Input
+                    type="search"
+                    placeholder="Search users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="md:min-w-64"
+                  />
+                  <Button type="submit" variant="secondary" size="icon">
+                    <Search className="h-4 w-4" />
+                    <span className="sr-only">Search</span>
+                  </Button>
+                </div>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add User
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New User</DialogTitle>
+                      <DialogDescription>
+                        Create a new user account. The user will receive an email with login instructions.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateUser}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="username" className="text-right">
+                            Username
+                          </Label>
+                          <Input
+                            id="username"
+                            name="username"
+                            value={newUser.username}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="email" className="text-right">
+                            Email
+                          </Label>
+                          <Input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value={newUser.email}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="password" className="text-right">
+                            Password
+                          </Label>
+                          <Input
+                            id="password"
+                            name="password"
+                            type="password"
+                            value={newUser.password}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="first_name" className="text-right">
+                            First Name
+                          </Label>
+                          <Input
+                            id="first_name"
+                            name="first_name"
+                            value={newUser.first_name}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="last_name" className="text-right">
+                            Last Name
+                          </Label>
+                          <Input
+                            id="last_name"
+                            name="last_name"
+                            value={newUser.last_name}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="role" className="text-right">
+                            Role
+                          </Label>
+                          <Select 
+                            value={newUser.role} 
+                            onValueChange={handleRoleChange}
+                          >
+                            <SelectTrigger className="col-span-3">
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="student">Student</SelectItem>
+                              <SelectItem value="teacher">Teacher</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="administration">Administration</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting ? 'Creating...' : 'Create User'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Profile</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
@@ -119,24 +368,53 @@ const Users: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>
-                        <span className="capitalize">{user.role}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewUser(user)}
-                        >
-                          View
-                        </Button>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        Loading users...
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        No users found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center justify-center">
+                            <Avatar className="h-10 w-10">
+                              {user.profile_picture_data ? (
+                                <AvatarImage src={user.profile_picture_data} alt={`${user.first_name} ${user.last_name}`} />
+                              ) : user.avatar ? (
+                                <AvatarImage src={user.avatar} alt={`${user.first_name} ${user.last_name}`} />
+                              ) : (
+                                <AvatarFallback className="bg-primary text-primary-foreground">
+                                  {user.role === 'administration' ? 'AD' : user.first_name.charAt(0)}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                          </div>
+                        </TableCell>
+                        <TableCell>{`${user.first_name} ${user.last_name}`}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <span className="capitalize">{user.role}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewUser(user)}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -158,13 +436,25 @@ const Users: React.FC = () => {
               {selectedUser && (
                 <div className="space-y-6">
                   <div className="flex items-center space-x-4">
-                    <img 
-                      src={selectedUser.avatar} 
-                      alt={selectedUser.name}
-                      className="w-24 h-24 rounded-full object-cover"
-                    />
+                    {selectedUser.profile_picture_data ? (
+                      <img 
+                        src={selectedUser.profile_picture_data} 
+                        alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
+                        className="w-24 h-24 rounded-full object-cover"
+                      />
+                    ) : selectedUser.avatar ? (
+                      <img 
+                        src={selectedUser.avatar} 
+                        alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
+                        className="w-24 h-24 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-3xl">
+                        {selectedUser.first_name.charAt(0)}
+                      </div>
+                    )}
                     <div>
-                      <h2 className="text-2xl font-bold">{selectedUser.name}</h2>
+                      <h2 className="text-2xl font-bold">{`${selectedUser.first_name} ${selectedUser.last_name}`}</h2>
                       <p className="text-sm text-muted-foreground capitalize">{selectedUser.role}</p>
                     </div>
                   </div>
@@ -176,6 +466,10 @@ const Users: React.FC = () => {
                         <div className="flex justify-between border-b pb-1">
                           <span className="text-muted-foreground">Email:</span>
                           <span>{selectedUser.email}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-1">
+                          <span className="text-muted-foreground">Username:</span>
+                          <span>{selectedUser.username}</span>
                         </div>
                         <div className="flex justify-between border-b pb-1">
                           <span className="text-muted-foreground">User ID:</span>

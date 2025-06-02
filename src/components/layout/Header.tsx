@@ -40,7 +40,9 @@ const Header: React.FC = () => {
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.profilePicture || user?.avatar || DEFAULT_AVATAR} alt={user?.name} />
-                <AvatarFallback className="bg-white text-primary dark:bg-gray-800 dark:text-white">{user?.name?.charAt(0)}</AvatarFallback>
+                <AvatarFallback className="bg-white text-primary dark:bg-gray-800 dark:text-white">
+                  {user?.role === 'administration' ? 'AD' : user?.name?.charAt(0)}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

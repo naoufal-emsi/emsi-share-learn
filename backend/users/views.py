@@ -2,7 +2,7 @@ from rest_framework import generics, permissions, status, views
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth import get_user_model
-from .serializers import UserSerializer, RegisterSerializer
+from .serializers import UserSerializer, RegisterSerializer, AdminUserCreateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
@@ -47,6 +47,55 @@ class UserListView(generics.ListAPIView):
         if user.role in ['teacher', 'admin', 'administration']:
             return User.objects.all().order_by('date_joined')
         return User.objects.filter(id=user.id)
+
+
+class AdminUserCreateView(generics.CreateAPIView):
+    serializer_class = AdminUserCreateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        # Only allow admins and administration to create users
+        if request.user.role not in ['admin', 'administration']:
+            return Response({'detail': 'You do not have permission to create users.'},
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role
+        }, status=status.HTTP_201_CREATED)
+
+
+class UserDeleteView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def delete(self, request, user_id):
+        # Only allow admins and administration to delete users
+        if request.user.role not in ['admin', 'administration']:
+            return Response({'detail': 'You do not have permission to delete users.'}, 
+                            status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            user_to_delete = User.objects.get(id=user_id)
+            
+            # Prevent self-deletion
+            if user_to_delete.id == request.user.id:
+                return Response({'detail': 'You cannot delete your own account.'}, 
+                                status=status.HTTP_400_BAD_REQUEST)
+                
+            user_to_delete.delete()
+            return Response({'detail': 'User deleted successfully.'}, 
+                            status=status.HTTP_204_NO_CONTENT)
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found.'}, 
+                            status=status.HTTP_404_NOT_FOUND)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):

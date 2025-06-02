@@ -99,6 +99,48 @@ export const authAPI = {
     }
   },
   
+  getAllUsers: async () => {
+    try {
+      const response = await apiRequest('/users/');
+      return response;
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  },
+  
+  deleteUser: async (userId: string) => {
+    try {
+      const response = await apiRequest(`/users/${userId}/`, {
+        method: 'DELETE',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
+  },
+  
+  createUser: async (userData: {
+    username: string;
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+    role: 'student' | 'teacher' | 'admin' | 'administration';
+  }) => {
+    try {
+      const response = await apiRequest('/users/create/', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  },
+  
   register: async (userData: {
     username: string;
     email: string;

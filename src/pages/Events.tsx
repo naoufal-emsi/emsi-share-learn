@@ -263,6 +263,15 @@ const Events: React.FC = () => {
                         >
                           Details
                         </Button>
+                        {user?.role === 'administration' && (
+                          <Button 
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate(`/events/${event.id}/edit`)}
+                          >
+                            Edit
+                          </Button>
+                        )}
                         {event.user_attendance ? (
                           <Button 
                             size="sm" 
@@ -511,22 +520,33 @@ const Events: React.FC = () => {
                         <div className="text-sm">
                           <Badge variant="outline" className="mr-2">You created this</Badge>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={async () => {
-                            try {
-                              await eventsAPI.deleteEvent(event.id.toString());
-                              toast.success('Event deleted');
-                              fetchEvents();
-                            } catch (error) {
-                              console.error('Failed to delete event:', error);
-                              toast.error('Failed to delete event');
-                            }
-                          }}
-                        >
-                          Delete
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              navigate(`/events/${event.id}/edit`);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={async () => {
+                              try {
+                                await eventsAPI.deleteEvent(event.id.toString());
+                                toast.success('Event deleted');
+                                fetchEvents();
+                              } catch (error) {
+                                console.error('Failed to delete event:', error);
+                                toast.error('Failed to delete event');
+                              }
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </CardFooter>
                     </Card>
                   ))}
