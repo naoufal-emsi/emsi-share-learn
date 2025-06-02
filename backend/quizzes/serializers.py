@@ -1,4 +1,3 @@
-
 from rest_framework import serializers
 from .models import Quiz, Question, Option, QuizAttempt, Answer, QuizResource
 
@@ -38,14 +37,16 @@ class QuizResourceSerializer(serializers.ModelSerializer):
         return obj.file.size if obj.file else None
 
 class QuizSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, required=False)  # Add this line
+    questions = QuestionSerializer(many=True, required=False)
     questions_count = serializers.SerializerMethodField()
     resources_count = serializers.SerializerMethodField()
+    student_attempts = serializers.SerializerMethodField()
     
     class Meta:
         model = Quiz
         fields = ['id', 'title', 'description', 'room', 'created_by', 'created_at',
-                 'is_public', 'questions_count', 'resources_count', 'questions', 'is_active']  # Add 'is_active' here
+                 'is_public', 'questions_count', 'resources_count', 'questions', 
+                 'is_active', 'max_attempts', 'student_attempts']
         read_only_fields = ['id', 'created_by', 'created_at']
     
     def get_questions_count(self, obj):
@@ -53,6 +54,12 @@ class QuizSerializer(serializers.ModelSerializer):
     
     def get_resources_count(self, obj):
         return obj.quiz_resources.count()
+        
+    def get_student_attempts(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return obj.get_student_attempts(request.user)
+        return 0
     
     def create(self, validated_data):
         questions_data = validated_data.pop('questions', [])  # Extract questions data
@@ -87,17 +94,23 @@ class QuizSubmitSerializer(serializers.Serializer):
 class QuizResultSerializer(serializers.ModelSerializer):
     questions_total = serializers.SerializerMethodField()
     questions_correct = serializers.SerializerMethodField()
+    max_attempts = serializers.IntegerField(source='quiz.max_attempts')
+    attempts_used = serializers.SerializerMethodField()
 
     class Meta:
         model = QuizAttempt
         fields = ['id', 'quiz', 'student', 'start_time', 'end_time', 
-                 'score', 'questions_total', 'questions_correct']
+                 'score', 'questions_total', 'questions_correct', 
+                 'max_attempts', 'attempts_used']
     
     def get_questions_total(self, obj):
         return obj.quiz.questions.count()
     
     def get_questions_correct(self, obj):
         return obj.answers.filter(is_correct=True).count()
+        
+    def get_attempts_used(self, obj):
+        return obj.quiz.get_student_attempts(obj.student)
 
 class AnswerSerializer(serializers.ModelSerializer):
     question_text = serializers.CharField(source='question.text', read_only=True)

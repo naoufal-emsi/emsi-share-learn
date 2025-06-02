@@ -23,6 +23,7 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded, roomId }) =>
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [maxAttempts, setMaxAttempts] = useState(1);
   const [questions, setQuestions] = useState<Question[]>([
     { question: '', options: ['', '', '', ''], correctAnswer: 0 }
   ]);
@@ -60,6 +61,15 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded, roomId }) =>
       toast({
         title: "Error",
         description: "Quiz title is required",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (maxAttempts < 1) {
+      toast({
+        title: "Error",
+        description: "Maximum attempts must be at least 1",
         variant: "destructive"
       });
       return false;
@@ -118,6 +128,7 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded, roomId }) =>
         title,
         description,
         room: roomId,
+        max_attempts: maxAttempts,
         questions: apiQuestions
       };
 
@@ -132,6 +143,7 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded, roomId }) =>
       // Reset form
       setTitle('');
       setDescription('');
+      setMaxAttempts(1);
       setQuestions([{ question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
       setOpen(false);
     } catch (error) {
@@ -181,6 +193,22 @@ const AddQuizDialog: React.FC<AddQuizDialogProps> = ({ onQuizAdded, roomId }) =>
               onChange={(e) => setDescription(e.target.value)}
               disabled={isSubmitting}
             />
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="maxAttempts">Maximum Attempts *</Label>
+            <Input
+              id="maxAttempts"
+              type="number"
+              min="1"
+              placeholder="Maximum attempts allowed"
+              value={maxAttempts}
+              onChange={(e) => setMaxAttempts(parseInt(e.target.value) || 1)}
+              disabled={isSubmitting}
+            />
+            <p className="text-xs text-muted-foreground">
+              Number of times a student can take this quiz
+            </p>
           </div>
           
           <div className="space-y-4">

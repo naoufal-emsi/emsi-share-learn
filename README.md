@@ -1,73 +1,58 @@
-# Welcome to your Lovable project
+# EMSI Share Learn Platform
 
-## Project info
+## Security Updates (Important)
 
-**URL**: https://lovable.dev/projects/eb025727-0424-422f-9029-f3c687893745
+The project has been updated to address several security vulnerabilities:
 
-## How can I edit this code?
+1. Replaced vulnerable `@react-pdf-viewer/core` with safer `react-pdf` library
+   - Created a new `PDFViewerSafe.tsx` component that should be used instead of the old PDFViewer
+   - The old component is kept for reference but should be migrated
 
-There are several ways of editing your application.
+2. Updated `react-syntax-highlighter` to version 15.6.1 to fix vulnerabilities
 
-**Use Lovable**
+3. Added `@react-pdf/renderer` as an alternative for PDF generation needs
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/eb025727-0424-422f-9029-f3c687893745) and start prompting.
+4. Known issues that still need attention:
+   - `xlsx` library has vulnerabilities with no direct fix available
+   - Consider using alternative spreadsheet libraries if needed
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### Frontend
+```bash
+# Install dependencies
+npm install
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Backend
+```bash
+# Navigate to backend directory
+cd backend
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+# Install Python dependencies
+pip install -r requirements.txt
 
-**Use GitHub Codespaces**
+# Run migrations
+python manage.py migrate
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Start development server
+python manage.py runserver
+```
 
-## What technologies are used for this project?
+## Project Structure
 
-This project is built with:
+- `/src` - React frontend code
+- `/backend` - Django backend code
+- `/public` - Static assets
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Features
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/eb025727-0424-422f-9029-f3c687893745) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- User authentication
+- Resource sharing
+- Forums
+- Events
+- Quizzes
+- Rooms for collaboration

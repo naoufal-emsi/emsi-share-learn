@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.conf import settings
 from rooms.models import Room
@@ -25,6 +24,17 @@ class Quiz(models.Model):
     
     def __str__(self):
         return self.title
+        
+    def get_student_attempts(self, student):
+        """Get the number of attempts a student has made for this quiz"""
+        return self.attempts.filter(student=student, status='completed').count()
+        
+    def get_best_attempt(self, student):
+        """Get the best attempt score for a student"""
+        attempts = self.attempts.filter(student=student, status='completed')
+        if attempts.exists():
+            return attempts.order_by('-score').first()
+        return None
 
 class Question(models.Model):
     QUESTION_TYPES = [
