@@ -110,8 +110,14 @@ const EventDetails: React.FC = () => {
       
       // Fetch attendees
       if (data.id) {
-        const attendeesData = await eventsAPI.getAttendees(data.id.toString());
-        setAttendees(attendeesData);
+        try {
+          const attendeesData = await eventsAPI.getAttendees(data.id.toString());
+          console.log('Fetched attendees:', attendeesData);
+          setAttendees(attendeesData || []);
+        } catch (attendeesError) {
+          console.error('Failed to fetch attendees:', attendeesError);
+          setAttendees([]);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch event:', error);
@@ -126,17 +132,20 @@ const EventDetails: React.FC = () => {
     
     try {
       await eventsAPI.attendEvent(event.id.toString(), status);
-      toast.success(`Registration successful! You are now ${status} this event`);
       
-      // Show notification
-      const notificationMessage = `You have successfully registered for "${event.title}"`;
-      toast.success(notificationMessage, {
+      // Show toast notification
+      toast.success(`Successfully registered for "${event.title}"`, {
         duration: 5000,
         action: {
           label: "View Event",
           onClick: () => {}
         }
       });
+      
+      // Refresh notifications if available in the app
+      if (window.refreshNotifications) {
+        window.refreshNotifications();
+      }
       
       fetchEvent();
     } catch (error) {
@@ -277,28 +286,27 @@ const EventDetails: React.FC = () => {
               <Badge variant="secondary" className="ml-1">{event.attendees_count}</Badge>
             </TabsTrigger>
           </TabsList>
-        </Tabs>
-        
-        <div className="space-y-6">
-          {/* Cover Image Section */}
-          <Card>
-            <CardContent className="p-0 overflow-hidden">
-              {event.image_base64 ? (
-                <img 
-                  src={`data:${event.image_name?.includes('.png') ? 'image/png' : 'image/jpeg'};base64,${event.image_base64}`}
-                  alt="Event" 
-                  className="w-full max-h-[400px] object-cover"
-                />
-              ) : (
-                <div className="h-[200px] flex items-center justify-center bg-muted/20">
-                  <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
           
-          <TabsContent value="details">
-            {/* Event Trailer Section */}
+          <div className="space-y-6 mt-6">
+            {/* Cover Image Section */}
+            <Card>
+              <CardContent className="p-0 overflow-hidden">
+                {event.image_base64 ? (
+                  <img 
+                    src={`data:${event.image_name?.includes('.png') ? 'image/png' : 'image/jpeg'};base64,${event.image_base64}`}
+                    alt="Event" 
+                    className="w-full max-h-[400px] object-cover"
+                  />
+                ) : (
+                  <div className="h-[200px] flex items-center justify-center bg-muted/20">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <TabsContent value="details">
+              {/* Event Trailer Section */}
             <Card>
               <CardHeader>
                 <CardTitle>Event Trailer</CardTitle>
@@ -399,12 +407,22 @@ const EventDetails: React.FC = () => {
               </CardContent>
               <CardFooter className="flex justify-end gap-2">
                 {event.user_attendance ? (
-                  <Button 
-                    variant="outline"
-                    onClick={handleCancelAttendance}
-                  >
-                    Cancel Registration
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      className="bg-green-50 text-green-600 hover:bg-green-100 hover:text-green-700 border-green-200"
+                      disabled
+                    >
+                      <UserCheck className="h-4 w-4 mr-2" />
+                      Registered
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={handleCancelAttendance}
+                    >
+                      Cancel Registration
+                    </Button>
+                  </div>
                 ) : (
                   <Button 
                     onClick={() => handleAttendEvent('attending')}
@@ -485,93 +503,96 @@ const EventDetails: React.FC = () => {
           
           {/* Media Upload Section (for teachers only) */}
           {isTeacher && event.created_by.id === user?.id && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Manage Event Media</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="event-image">Upload Cover Image</Label>
-                  <div className="flex gap-2">
-                    <input
-                      id="event-image"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                      className="flex-1"
-                    />
-                    <Button 
-                      onClick={handleImageUpload}
-                      disabled={!imageFile || uploadingImage}
-                    >
-                      {uploadingImage ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                      )}
-                      Upload
-                    </Button>
+            <div className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Event Media</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="event-image">Upload Cover Image</Label>
+                    <div className="flex gap-2">
+                      <input
+                        id="event-image"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={handleImageUpload}
+                        disabled={!imageFile || uploadingImage}
+                      >
+                        {uploadingImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        Upload
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="event-video">Upload Media</Label>
-                  <div className="flex gap-2">
-                    <input
-                      id="event-video"
-                      type="file"
-                      accept="video/*,image/*"
-                      onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
-                      className="flex-1"
-                    />
-                    <Button 
-                      onClick={handleVideoUpload}
-                      disabled={!videoFile || uploadingVideo}
-                    >
-                      {uploadingVideo ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                      )}
-                      Upload
-                    </Button>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="event-video">Upload Media</Label>
+                    <div className="flex gap-2">
+                      <input
+                        id="event-video"
+                        type="file"
+                        accept="video/*,image/*"
+                        onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={handleVideoUpload}
+                        disabled={!videoFile || uploadingVideo}
+                      >
+                        {uploadingVideo ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        Upload
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="event-trailer">Upload Trailer</Label>
-                  <div className="flex gap-2">
-                    <input
-                      id="event-trailer"
-                      type="file"
-                      accept="video/*,image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const isVideo = file.type.startsWith('video/');
-                          const reader = new FileReader();
-                          reader.onloadend = async () => {
-                            const base64data = reader.result as string;
-                            
-                            await eventsAPI.updateEvent(event.id.toString(), {
-                              trailer_upload: base64data,
-                              trailer_type: isVideo ? 'video' : 'image'
-                            });
-                            
-                            toast.success('Trailer uploaded successfully');
-                            fetchEvent();
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="flex-1"
-                    />
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="event-trailer">Upload Trailer</Label>
+                    <div className="flex gap-2">
+                      <input
+                        id="event-trailer"
+                        type="file"
+                        accept="video/*,image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const isVideo = file.type.startsWith('video/');
+                            const reader = new FileReader();
+                            reader.onloadend = async () => {
+                              const base64data = reader.result as string;
+                              
+                              await eventsAPI.updateEvent(event.id.toString(), {
+                                trailer_upload: base64data,
+                                trailer_type: isVideo ? 'video' : 'image'
+                              });
+                              
+                              toast.success('Trailer uploaded successfully');
+                              fetchEvent();
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           )}
-        </div>
+          </div>
+        </Tabs>
       </div>
     </MainLayout>
   );

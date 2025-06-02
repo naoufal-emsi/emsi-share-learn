@@ -8,6 +8,8 @@ interface Attendee {
   id: number;
   user: User;
   status: 'attending' | 'maybe' | 'declined';
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface AttendeesListProps {

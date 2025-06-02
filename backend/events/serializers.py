@@ -81,7 +81,10 @@ class EventSerializer(serializers.ModelSerializer):
         return False
     
     def get_attendees_count(self, obj):
-        return obj.attendees.filter(status='attending').count()
+        try:
+            return obj.attendees.filter(status='attending').count()
+        except:
+            return 0
     
     def get_user_attendance(self, obj):
         request = self.context.get('request')

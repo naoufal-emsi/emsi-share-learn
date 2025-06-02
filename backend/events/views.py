@@ -165,7 +165,7 @@ class EventViewSet(viewsets.ModelViewSet):
             self.permission_classes = [permissions.IsAuthenticated, EventPermission]
         return super().get_permissions()
     
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
     def attend(self, request, pk=None):
         event = self.get_object()
         status_value = request.data.get('status', 'attending')
@@ -177,6 +177,28 @@ class EventViewSet(viewsets.ModelViewSet):
             event=event,
             user=request.user,
             defaults={'status': status_value}
+        )
+        
+        # Create notification for the user
+        from notifications.models import Notification, NotificationType
+        
+        notification_type, _ = NotificationType.objects.get_or_create(
+            name='event_registration',
+            defaults={
+                'description': 'Event registration notifications',
+                'icon': 'calendar',
+                'color': '#4CAF50'
+            }
+        )
+        
+        Notification.objects.create(
+            recipient=request.user,
+            notification_type=notification_type,
+            title=f"Event Registration",
+            message=f"You have successfully registered for {event.title}",
+            event=event,
+            action_url=f"/events/{event.id}",
+            action_text="View Event"
         )
         
         serializer = EventAttendeeSerializer(attendance)
@@ -196,14 +218,18 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def attendees(self, request, pk=None):
         event = self.get_object()
-        attendees = event.attendees.all()
-        
-        status_filter = request.query_params.get('status', None)
-        if status_filter:
-            attendees = attendees.filter(status=status_filter)
-        
-        serializer = EventAttendeeSerializer(attendees, many=True)
-        return Response(serializer.data)
+        try:
+            attendees = event.attendees.all()
+            
+            status_filter = request.query_params.get('status', None)
+            if status_filter:
+                attendees = attendees.filter(status=status_filter)
+            
+            serializer = EventAttendeeSerializer(attendees, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error fetching attendees: {str(e)}")
+            return Response([], status=status.HTTP_200_OK)
         
     @action(detail=True, methods=['post'])
     def auto_register_collaborators(self, request, pk=None):
