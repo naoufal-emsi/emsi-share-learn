@@ -6,15 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import AddResourceDialog from '@/components/rooms/AddResourceDialog';
+import RoomResourceUploadWrapper from '@/components/rooms/RoomResourceUploadWrapper';
 import AddQuizDialog from '@/components/rooms/AddQuizDialog';
 import { roomsAPI, resourcesAPI, quizzesAPI } from '@/services/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Copy, FileText, BookOpen, Download, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import Quiz from './Quiz'; // Import the Quiz component
-import { Toggle } from '@/components/ui/toggle';
+import Quiz from './Quiz';
+import ResourceDetailDialog from '@/components/resources/ResourceDetailDialog';
+import RoomResourceCard from '@/components/RoomResourceCard';
+import RoomQuizCard from '@/components/RoomQuizCard';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +28,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
 
 type Option = {
   id: number;
@@ -47,8 +48,8 @@ type Quiz = {
   questions: Question[];
   questions_count: number;
   resources_count: number;
-  is_active: boolean; // Add this line
-  student_attempts?: number;  // Add this line
+  is_active: boolean;
+  student_attempts?: number;
   max_attempts?: number;
 };
 
@@ -64,21 +65,44 @@ interface Room {
   is_owner: boolean;
 }
 
+interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  file_name: string;
+  file_size: number;
+  bookmark_count?: number;
+  uploaded_at?: string;
+  uploaded_by?: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+  };
+  category?: number | null;
+  category_name?: string | null;
+}
+
 const RoomDetails: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const [room, setRoom] = useState<Room | null>(null);
-  const [resources, setResources] = useState<any[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false); 
-  const [showQuizModal, setShowQuizModal] = useState(false); // New state for quiz modal visibility
-  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null); // New state to hold the selected quiz ID
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [showResourcesDialog, setShowResourcesDialog] = useState(false);
+  const [quizResources, setQuizResources] = useState<any[]>([]);
+  const [selectedQuizForResources, setSelectedQuizForResources] = useState<string | null>(null);
   const isTeacher = user?.role === 'teacher';
   const navigate = useNavigate();
 
-  // Add this function to RoomDetails component
   const handleTakeQuiz = (quizId: string) => {
     setSelectedQuizId(quizId);
     setShowQuizModal(true);
@@ -86,7 +110,7 @@ const RoomDetails: React.FC = () => {
 
   const handleQuizDeleted = async (quizId: string) => {
     try {
-      await quizzesAPI.deleteQuiz(quizId); // Don't try to use the response
+      await quizzesAPI.deleteQuiz(quizId);
       setQuizzes(prev => prev.filter(quiz => quiz.id !== quizId));
       toast({
         title: "Success",
@@ -102,8 +126,6 @@ const RoomDetails: React.FC = () => {
     }
   };
   
-  
-
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId) return;
@@ -111,7 +133,7 @@ const RoomDetails: React.FC = () => {
       try {
         const [roomData, resourcesData, quizzesData] = await Promise.all([
           roomsAPI.getRoomDetails(roomId),
-          resourcesAPI.getResources({ roomId }), // <--- Change this line
+          resourcesAPI.getResources({ roomId }),
           quizzesAPI.getQuizzes(roomId)
         ]);
         setRoom(roomData);
@@ -151,6 +173,12 @@ const RoomDetails: React.FC = () => {
     fetchRoomData();
   }, [roomId, toast]);
 
+  useEffect(() => {
+    if (selectedResource) {
+      setIsDetailDialogOpen(true);
+    }
+  }, [selectedResource]);
+
   const copyRoomId = () => {
     if (room) {
       navigator.clipboard.writeText(room.id);
@@ -161,7 +189,6 @@ const RoomDetails: React.FC = () => {
     }
   };
 
-
   const handleDeleteRoom = async () => {
     if (!roomId || !room) return;
   
@@ -171,7 +198,7 @@ const RoomDetails: React.FC = () => {
         title: "Success",
         description: "Room deleted successfully",
       });
-      navigate('/rooms'); // Alternative navigation method
+      navigate('/rooms');
     } catch (error) {
       console.error('Failed to delete room:', error);
       toast({
@@ -214,9 +241,7 @@ const RoomDetails: React.FC = () => {
 
   const downloadResource = async (resourceId: string, filename: string) => {
     try {
-      // Use roomId from the URL params (which is the room code)
-      // if (!roomId) throw new Error('Room ID is missing'); // This line is no longer needed
-      const blob = await resourcesAPI.downloadResource(resourceId); // Pass only resourceId
+      const blob = await resourcesAPI.downloadResource(resourceId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -235,6 +260,43 @@ const RoomDetails: React.FC = () => {
       toast({
         title: "Download Failed",
         description: "Failed to download the resource",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewQuizResources = async (quizId: string) => {
+    try {
+      const resourcesData = await quizzesAPI.getQuizResources(quizId);
+      setQuizResources(resourcesData);
+      setSelectedQuizForResources(quizId);
+      setShowResourcesDialog(true);
+    } catch (error) {
+      console.error('Failed to fetch quiz resources:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load quiz resources",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleToggleQuizActive = async (quizId: string, isActive: boolean) => {
+    try {
+      await quizzesAPI.toggleQuizActiveStatus(quizId);
+      handleQuizUpdated({ 
+        ...quizzes.find(q => q.id === quizId)!, 
+        is_active: isActive 
+      });
+      toast({
+        title: "Success",
+        description: `Quiz ${isActive ? 'activated' : 'deactivated'} successfully`,
+      });
+    } catch (error) {
+      console.error('Failed to toggle quiz status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update quiz status",
         variant: "destructive"
       });
     }
@@ -311,17 +373,17 @@ const RoomDetails: React.FC = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Resources</h2>
               {isTeacher && (
-  <AddResourceDialog 
-    roomId={roomId}
-    onResourceAdded={handleResourceAdded}
-    triggerButton={
-      <Button size="sm">
-        <FileText className="h-4 w-4 mr-2" />
-        Add Resource
-      </Button>
-    }
-  />
-)}
+                <RoomResourceUploadWrapper 
+                  roomId={roomId || ''}
+                  onSuccess={handleResourceAdded}
+                  triggerButton={
+                    <Button size="sm">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Add Resource
+                    </Button>
+                  }
+                />
+              )}
             </div>
             {Array.isArray(resources) && resources.length === 0 ? (
               <div className="text-center py-8">
@@ -330,54 +392,14 @@ const RoomDetails: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {resources.map((resource) => (
-                  <Card key={resource.id} className="overflow-hidden">
-                    <CardHeader>
-                      <CardTitle className="text-base">{resource.title}</CardTitle>
-                      <CardDescription>{resource.type?.toUpperCase?.() || ''}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {resource.description && (
-                        <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
-                      )}
-
-                      <div className="flex gap-2">
-                        <Button
-                          className="flex-1" // Use flex-1 to make it take available space
-                          size="sm"
-                          onClick={() => downloadResource(resource.id, resource.file_name || resource.title)}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download
-                        </Button>
-                        {isTeacher && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete the resource and remove its data from our servers.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteResource(resource.id)}>
-                                  Continue
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <RoomResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    onClick={() => setSelectedResource(resource)}
+                    onDownload={downloadResource}
+                    onDelete={isTeacher ? handleDeleteResource : undefined}
+                    showDeleteButton={isTeacher}
+                  />
                 ))}
               </div>
             )}
@@ -400,16 +422,15 @@ const RoomDetails: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {quizzes.map((quiz) => (
-                  <QuizCard
-                  key={quiz.id}
-                  quiz={quiz}
-                  onDownloadResource={downloadResource}
-                  roomId={roomId}
-                  onTakeQuiz={handleTakeQuiz}
-                  isTeacher={isTeacher}
-                  onQuizUpdated={handleQuizUpdated}
-                  onQuizDeleted={handleQuizDeleted}
-                />
+                  <RoomQuizCard
+                    key={quiz.id}
+                    quiz={quiz}
+                    onTakeQuiz={handleTakeQuiz}
+                    onViewResources={() => handleViewQuizResources(quiz.id)}
+                    onToggleActive={handleToggleQuizActive}
+                    onDelete={handleQuizDeleted}
+                    isTeacher={isTeacher}
+                  />
                 ))}
               </div>
             )}
@@ -431,324 +452,44 @@ const RoomDetails: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Resource Detail Dialog */}
+      <ResourceDetailDialog
+        resource={selectedResource as any}
+        open={isDetailDialogOpen}
+        onOpenChange={(open) => {
+          setIsDetailDialogOpen(open);
+          if (!open) setSelectedResource(null);
+        }}
+      />
+
+      {/* Quiz Resources Dialog */}
+      <Dialog open={showResourcesDialog} onOpenChange={setShowResourcesDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quiz Resources</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {quizResources.length > 0 ? (
+              quizResources.map((resource) => (
+                <div key={resource.id} className="flex items-center justify-between p-2 border rounded-md">
+                  <span>{resource.title}</span>
+                  <Button size="sm" onClick={() => downloadResource(resource.id, resource.filename || resource.title)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <p>No resources available for this quiz.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowResourcesDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
-  );
-};
-
-const QuizCard: React.FC<{
-  quiz: Quiz;
-  onDownloadResource: (resourceId: string, filename: string) => void;
-  roomId?: string;
-  onTakeQuiz: (quizId: string) => void;
-  isTeacher: boolean;
-  onQuizUpdated: (updatedQuiz: Quiz) => void;
-  onQuizDeleted?: (quizId: string) => void;
-}> = ({ quiz, onDownloadResource, roomId, onTakeQuiz, isTeacher, onQuizUpdated, onQuizDeleted }) => {
-  const [resources, setResources] = useState<any[]>([]);
-  const [showResources, setShowResources] = useState(false);
-  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
-  const [quizResult, setQuizResult] = useState<any>(null);
-  const [isTogglingActive, setIsTogglingActive] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const { toast } = useToast();
-
-  const fetchQuizResources = async () => {
-    try {
-      const resourcesData = await quizzesAPI.getQuizResources(quiz.id);
-      setResources(resourcesData);
-      setShowResources(true);
-    } catch (error) {
-      console.error('Failed to fetch quiz resources:', error);
-    }
-  };
-
-  const handleTakeQuiz = async (quizId: string) => {
-    onTakeQuiz(quizId);
-    setSelectedQuiz(null);
-    setQuizResult(null);
-  };
-
-  const handleToggleActive = async () => {
-    setIsTogglingActive(true);
-    try {
-      const newIsActive = !quiz.is_active;
-      await quizzesAPI.toggleQuizActiveStatus(quiz.id);
-      onQuizUpdated({ ...quiz, is_active: newIsActive });
-      toast({
-        title: "Success",
-        description: `Quiz status updated to ${newIsActive ? 'Active' : 'Inactive'}`,
-      });
-    } catch (error) {
-      console.error('Failed to toggle quiz active status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update quiz status",
-        variant: "destructive"
-      });
-    } finally {
-      setIsTogglingActive(false);
-    }
-  };
-
-  const handleDeleteQuiz = async (quizId: string) => {
-    console.log('Attempting to delete quiz with ID:', quizId); // Add this line
-    setIsDeleting(true);
-    try {
-      await quizzesAPI.deleteQuiz(quizId);
-      toast({
-        title: "Success",
-        description: "Quiz deleted successfully",
-      });
-      <AlertDialogAction onClick={() => onQuizDeleted && onQuizDeleted(quiz.id)}>
-        Continue
-      </AlertDialogAction>
-    } catch (error) {
-      console.error('Failed to delete quiz:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete quiz",
-        variant: "destructive"
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  // Determine if the student can take the quiz or should see results
-  const attemptsExhausted = quiz.student_attempts !== undefined && quiz.max_attempts !== undefined && quiz.student_attempts >= quiz.max_attempts;
-  const canTakeQuiz = quiz.is_active && !attemptsExhausted;
-  const showResultsButton = quiz.is_active && attemptsExhausted;
-
-  const handleAnswerSelect = (questionIndex: number, optionIndex: number) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionIndex]: optionIndex
-    }));
-  };
-
-  const handleQuizSubmit = async () => {
-    if (!selectedQuiz) return;
-  
-    try {
-      setIsSubmitting(true);
-      
-      const formattedAnswers = selectedQuiz.questions.map((question, qIndex) => {
-        const selectedOptionIndex = answers[qIndex] ?? -1;
-        return {
-          question_id: question.id,
-          option_id: selectedOptionIndex >= 0 ? question.options[selectedOptionIndex].id : null
-        };
-      });
-
-      const result = await quizzesAPI.submitQuiz(selectedQuiz.id, formattedAnswers);
-      setQuizResult(result);
-      
-      toast({
-        title: "Quiz Submitted!",
-        description: `Your score: ${result.score}%`,
-      });
-    } catch (error) {
-      console.error('Quiz submission failed:', error);
-      toast({
-        title: "Submission Failed",
-        description: "Failed to submit quiz",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleBackToQuizList = () => {
-    setSelectedQuiz(null);
-    setQuizResult(null);
-  };
-
-  return (
-    <Card>
-      {selectedQuiz ? (
-        <div className="p-4 space-y-4">
-          {quizResult ? (
-            <div className="space-y-4">
-              <CardHeader className="p-0">
-                <CardTitle className="text-xl">Quiz Results</CardTitle>
-                <CardDescription>
-                  Score: {quizResult.score}% | Correct: {quizResult.questions_correct}/{quizResult.questions_total}
-                </CardDescription>
-              </CardHeader>
-              <Button 
-                className="w-full" 
-                onClick={handleBackToQuizList}
-              >
-                Back to Quizzes
-              </Button>
-            </div>
-          ) : (
-            <>
-              <CardHeader className="p-0">
-                <CardTitle>{selectedQuiz.title}</CardTitle>
-                {selectedQuiz.description && (
-                  <CardDescription>{selectedQuiz.description}</CardDescription>
-                )}
-              </CardHeader>
-              
-              <div className="space-y-6">
-                {selectedQuiz.questions.map((question, qIndex) => (
-                  <div key={question.id} className="space-y-2">
-                    <h4 className="font-medium">{qIndex + 1}. {question.text}</h4>
-                    <div className="space-y-2">
-                      {question.options.map((option, oIndex) => (
-                        <Button
-                          key={option.id}
-                          variant={answers[qIndex] === oIndex ? "default" : "outline"}
-                          className="w-full text-left justify-start"
-                          onClick={() => handleAnswerSelect(qIndex, oIndex)}
-                        >
-                          {option.text}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <Button
-                className="w-full"
-                onClick={handleQuizSubmit}
-                disabled={isSubmitting || 
-                  Object.keys(answers).length < selectedQuiz.questions.length
-                }
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  'Submit Quiz'
-                )}
-              </Button>
-            </>
-          )}
-        </div>
-      ) : (
-        <>
-          <CardHeader>
-            <CardTitle className="text-base">{quiz.title}</CardTitle>
-            <CardDescription>{quiz.questions_count} Questions</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {quiz.description && (
-              <p className="text-sm text-muted-foreground">{quiz.description}</p>
-            )}
-            
-            <div className="flex flex-col gap-2">
-              <Button 
-                className="w-full" 
-                size="sm"
-                onClick={() => onTakeQuiz(quiz.id)} // Use onTakeQuiz prop
-                disabled={isLoadingQuiz}
-              >
-                {isLoadingQuiz ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <BookOpen className="h-4 w-4 mr-2" />
-                )}
-                Take Quiz
-              </Button>
-              
-              {quiz.resources_count > 0 && (
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  size="sm"
-                  onClick={fetchQuizResources}
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  View Resources ({quiz.resources_count})
-                </Button>
-              )}
-
-              {isTeacher && ( // Show toggle button only for teachers
-                <Toggle
-                  variant="outline"
-                  className="w-full"
-                  size="sm"
-                  onPressedChange={handleToggleActive}
-                  disabled={isTogglingActive}
-                  pressed={quiz.is_active}
-                >
-                  {isTogglingActive ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : quiz.is_active ? (
-                    'Deactivate Quiz' // Text for when quiz is active
-                  ) : (
-                    'Activate Quiz' // Text for when quiz is inactive
-                  )}
-                </Toggle>
-              )}
-
-              {isTeacher && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="w-full mt-2 flex items-center gap-2"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete Quiz
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the quiz
-                        and remove its data from our servers.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDeleteQuiz(quiz.id)}>
-                        Continue
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
-            </div>
-
-            {showResources && (
-              <Dialog open={showResources} onOpenChange={setShowResources}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Quiz Resources</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-2">
-                    {resources.length > 0 ? (
-                      resources.map((resource) => (
-                        <div key={resource.id} className="flex items-center justify-between p-2 border rounded-md">
-                          <span>{resource.title}</span>
-                          <Button size="sm" onClick={() => onDownloadResource(resource.id, resource.filename)}>
-                            Download
-                          </Button>
-                        </div>
-                      ))
-                    ) : (
-                      <p>No resources available for this quiz.</p>
-                    )}
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={() => setShowResources(false)}>Close</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-          </CardContent>
-        </>
-      )}
-    </Card>
   );
 };
 

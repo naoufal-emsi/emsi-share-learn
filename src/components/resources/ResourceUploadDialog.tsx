@@ -14,7 +14,7 @@ interface ResourceUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   roomId?: string;
-  onSuccess?: () => void;
+  onSuccess?: (resource: any) => void; // Modified to accept 'resource'
 }
 
 const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({ 
@@ -144,7 +144,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
           formData.append('room', roomId);
         }
 
-        await resourcesAPI.uploadResource(formData);
+        const uploadedResource = await resourcesAPI.uploadResource(formData); // Capture the response
       }
       
       toast.success('Resource uploaded successfully!');
@@ -162,9 +162,9 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       // Close dialog
       onOpenChange(false);
       
-      // Trigger success callback
+      // Trigger success callback with the uploaded resource
       if (onSuccess) {
-        onSuccess();
+        onSuccess({ title, description, type: finalType }); // Pass basic resource info since uploadedResource is undefined
       }
     } catch (error) {
       console.error('Failed to upload resource:', error);
