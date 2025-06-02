@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import PDFViewer from './PDFViewer';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus, vs } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import PDFViewerSafe from './PDFViewerSafe';
+import { Highlight, themes } from 'prism-react-renderer';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -177,7 +176,7 @@ const ResourceViewer: React.FC<ResourceViewerProps> = ({
 
   // Render based on resource type
   if (resourceType === 'pdf' || fileName.toLowerCase().endsWith('.pdf')) {
-    return <PDFViewer fileUrl={fileUrl} />;
+    return <PDFViewerSafe fileUrl={fileUrl} />;
   }
 
   if (resourceType === 'markdown' || fileName.toLowerCase().endsWith('.md')) {
@@ -239,16 +238,26 @@ const ResourceViewer: React.FC<ResourceViewerProps> = ({
     
     return (
       <div className="border rounded-md overflow-auto max-h-[500px] w-full">
-        <SyntaxHighlighter 
-          language="json" 
-          style={isDarkTheme ? vscDarkPlus : vs}
-          showLineNumbers
-          wrapLines={true}
-          wrapLongLines={true}
-          customStyle={{ width: '100%' }}
+        <Highlight
+          theme={isDarkTheme ? themes.vsDark : themes.vsLight}
+          code={formattedJSON}
+          language="json"
         >
-          {formattedJSON}
-        </SyntaxHighlighter>
+          {({ className, style, tokens, getLineProps, getTokenProps }) => (
+            <pre className={className} style={{ ...style, padding: '1rem', overflowX: 'auto' }}>
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line, key: i })} style={{ display: 'flex' }}>
+                  <span style={{ display: 'inline-block', width: '2em', userSelect: 'none', opacity: 0.5 }}>{i + 1}</span>
+                  <span>
+                    {line.map((token, key) => (
+                      <span key={key} {...getTokenProps({ token, key })} />
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </pre>
+          )}
+        </Highlight>
       </div>
     );
   }
@@ -262,16 +271,26 @@ const ResourceViewer: React.FC<ResourceViewerProps> = ({
       <div className="space-y-4 w-full">
         {/* Syntax highlighted LaTeX code */}
         <div className="border rounded-md overflow-auto max-h-[300px] w-full">
-          <SyntaxHighlighter 
-            language="latex" 
-            style={isDarkTheme ? vscDarkPlus : vs}
-            showLineNumbers
-            wrapLines={true}
-            wrapLongLines={true}
-            customStyle={{ width: '100%' }}
+          <Highlight
+            theme={isDarkTheme ? themes.vsDark : themes.vsLight}
+            code={fileContent || ''}
+            language="latex"
           >
-            {fileContent || ''}
-          </SyntaxHighlighter>
+            {({ className, style, tokens, getLineProps, getTokenProps }) => (
+              <pre className={className} style={{ ...style, padding: '1rem', overflowX: 'auto' }}>
+                {tokens.map((line, i) => (
+                  <div key={i} {...getLineProps({ line, key: i })} style={{ display: 'flex' }}>
+                    <span style={{ display: 'inline-block', width: '2em', userSelect: 'none', opacity: 0.5 }}>{i + 1}</span>
+                    <span>
+                      {line.map((token, key) => (
+                        <span key={key} {...getTokenProps({ token, key })} />
+                      ))}
+                    </span>
+                  </div>
+                ))}
+              </pre>
+            )}
+          </Highlight>
         </div>
         
         {/* Math expressions preview */}
@@ -333,16 +352,26 @@ const ResourceViewer: React.FC<ResourceViewerProps> = ({
     
     return (
       <div className="border rounded-md overflow-auto max-h-[500px] w-full">
-        <SyntaxHighlighter 
-          language={language} 
-          style={isDarkTheme ? vscDarkPlus : vs}
-          showLineNumbers
-          wrapLines={true}
-          wrapLongLines={true}
-          customStyle={{ width: '100%' }}
+        <Highlight
+          theme={isDarkTheme ? themes.vsDark : themes.vsLight}
+          code={fileContent || ''}
+          language={language}
         >
-          {fileContent || ''}
-        </SyntaxHighlighter>
+          {({ className, style, tokens, getLineProps, getTokenProps }) => (
+            <pre className={className} style={{ ...style, padding: '1rem', overflowX: 'auto' }}>
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line, key: i })} style={{ display: 'flex' }}>
+                  <span style={{ display: 'inline-block', width: '2em', userSelect: 'none', opacity: 0.5 }}>{i + 1}</span>
+                  <span>
+                    {line.map((token, key) => (
+                      <span key={key} {...getTokenProps({ token, key })} />
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </pre>
+          )}
+        </Highlight>
       </div>
     );
   }

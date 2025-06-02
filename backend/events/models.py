@@ -11,6 +11,12 @@ class Event(models.Model):
         ('deadline', 'Deadline'),
         ('meeting', 'Meeting'),
         ('other', 'Other'),
+        ('conference', 'Conference'),
+        ('seminar', 'Seminar'),
+        ('project', 'Project'),
+        ('social', 'Social Event'),
+        ('competition', 'Competition'),
+        ('training', 'Training'),
     )
     
     title = models.CharField(max_length=255)

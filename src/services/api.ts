@@ -560,6 +560,13 @@ export const quizzesAPI = {
   getPublicQuizzes: async () => {
     return apiRequest('/quizzes/?public=true');
   },
+
+  getStudentResults: async (quizId: string) => {
+    return apiRequest(`/quizzes/${quizId}/student-results/`);
+  },
+  
+
+
   
   getQuizzes: async (roomId: string) => {
     return apiRequest(`/quizzes/?room=${roomId}`);
@@ -575,6 +582,13 @@ export const quizzesAPI = {
       body: JSON.stringify(quizData),
     });
   },
+
+  deleteQuiz: async (quizId: string) => {
+    return apiRequest(`/quizzes/${quizId}/`, {
+      method: 'DELETE',
+    });
+  },
+  
   
   submitQuiz: async (quizId: string, answers: any[]) => {
     return apiRequest(`/quizzes/${quizId}/submit/`, {

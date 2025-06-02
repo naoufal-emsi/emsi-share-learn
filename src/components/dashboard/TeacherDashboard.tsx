@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useFetcher } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +15,7 @@ import {
   FileCheck,
   CalendarDays
 } from 'lucide-react';
-import {roomsAPI, resourcesAPI, quizzesAPI} from '@/services/api';
+import {roomsAPI, resourcesAPI, quizzesAPI, forumsAPI} from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming your hook is named useAuth
 
 const TeacherDashboard: React.FC = () => {
@@ -27,6 +26,9 @@ const TeacherDashboard: React.FC = () => {
   const [allStudentAnswers, setAllStudentAnswers] = useState([]); // New state for all student answers
   const [averageScore, setAverageScore] = useState<number | null>(null); // New state for average score
   const [averageStudentsPerRoom, setAverageStudentsPerRoom] = useState<number | null>(null);
+  const [forumTopics, setForumTopics] = useState([]);
+  const [unsolvedTopics, setUnsolvedTopics] = useState(0);
+  const [userPosts, setUserPosts] = useState(0);
   const { user } = useAuth(); // Get user from auth context
 
   useEffect(() => {
@@ -86,12 +88,46 @@ const TeacherDashboard: React.FC = () => {
       }
     };
     
+    // Fetch forum data
+    const fetchForumData = async () => {
+      try {
+        // Get all forum topics
+        const topicsResponse = await forumsAPI.getTopics();
+        const topics = topicsResponse.results || [];
+        setForumTopics(topics);
+        
+        // Count unsolved topics
+        const unsolved = topics.filter(topic => !topic.is_solved).length;
+        setUnsolvedTopics(unsolved);
+        
+        // Count user's posts if user is logged in
+        if (user && user.id) {
+          let userPostCount = 0;
+          
+          // Get posts for each topic and count those created by the current user
+          for (const topic of topics) {
+            try {
+              const postsResponse = await forumsAPI.getPosts(topic.id.toString());
+              const posts = postsResponse.results || [];
+              userPostCount += posts.filter(post => post.created_by && post.created_by.id === user.id).length;
+            } catch (error) {
+              console.error(`Error fetching posts for topic ${topic.id}:`, error);
+            }
+          }
+          
+          setUserPosts(userPostCount);
+        }
+      } catch (error) {
+        console.error('Error fetching forum data:', error);
+      }
+    };
 
     fetchRooms();
     fetchResources();
     fetchQuizzes();
-    fetchAllStudentAnswers(); // Call the new function
-  }, []);
+    fetchAllStudentAnswers();
+    fetchForumData();
+  }, [user]);
 
   useEffect(() => {
     // Calculate average score whenever allStudentAnswers changes
@@ -217,15 +253,15 @@ const TeacherDashboard: React.FC = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Discussions</span>
-              <span className="text-sm font-medium">18</span>
+              <span className="text-sm font-medium">{forumTopics.length}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Unanswered Questions</span>
-              <Badge variant="destructive">7</Badge>
+              <Badge variant="destructive">{unsolvedTopics}</Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Your Replies</span>
-              <span className="text-sm font-medium">42</span>
+              <span className="text-sm font-medium">{userPosts}</span>
             </div>
           </div>
         </CardContent>
