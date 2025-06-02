@@ -1,471 +1,171 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState, useEffect, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Download, FileText, Video, Code, File, Loader2, ExternalLink, Image as ImageIcon, Archive, Folder } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { resourcesAPI } from '@/services/api';
 import { toast } from 'sonner';
+import { Download, FileText, Video, Code, File, Calendar, User, Folder, ChevronRight, ChevronDown, Maximize2, Minimize2, Bookmark } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ResourceViewer from './ResourceViewer';
 import JSZip from 'jszip';
-import hljs from 'highlight.js';
-import 'highlight.js/styles/github.css';
+
+interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  file_name: string;
+  file_size: number;
+  bookmark_count: number;
+  uploaded_at: string;
+  uploaded_by: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    profile_picture_data?: string;
+  };
+  category: number | null;
+  category_name: string | null;
+}
+
+interface ZipItem {
+  name: string;
+  path: string;
+  type: string;
+  url?: string;
+  isDir: boolean;
+  content?: string;
+  children?: ZipItem[];
+}
 
 interface ResourceDetailDialogProps {
-  resource: {
-    id: string;
-    title: string;
-    description: string;
-    type: string;
-    file_name: string;
-    file_size: number;
-    download_count: number;
-    uploaded_at: string;
-    uploaded_by: {
-      id: string;
-      username: string;
-      first_name: string;
-      last_name: string;
-      avatar?: string;
-      profile_picture_data?: string;
-    };
-    category: number | null;
-    category_name: string | null;
-    file_data?: string;
-    file_type?: string;
-  } | null;
+  resource: Resource | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// Code preview component
-const CodePreview = ({ url, fileName }: { url: string, fileName: string }) => {
-  const [code, setCode] = useState('');
-  const [language, setLanguage] = useState('');
-  const [fontSize, setFontSize] = useState(14);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  
-  useEffect(() => {
-    const fetchCode = async () => {
-      try {
-        const response = await fetch(url);
-        const text = await response.text();
-        setCode(text);
-        
-        // Detect language from file extension
-        const ext = fileName.split('.').pop()?.toLowerCase() || '';
-        setLanguage(getLanguageFromExtension(ext));
-      } catch (error) {
-        console.error('Failed to load code file:', error);
-      }
-    };
-    
-    fetchCode();
-  }, [url, fileName]);
-  
-  useEffect(() => {
-    if (code && language) {
-      // Apply the appropriate theme stylesheet
-      const themeLink = document.getElementById('hljs-theme') as HTMLLinkElement;
-      if (!themeLink) {
-        const link = document.createElement('link');
-        link.id = 'hljs-theme';
-        link.rel = 'stylesheet';
-        link.href = theme === 'dark' 
-          ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css'
-          : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css';
-        document.head.appendChild(link);
-      } else {
-        themeLink.href = theme === 'dark' 
-          ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css'
-          : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css';
-      }
-      
-      // Re-highlight the code with the new theme
-      setTimeout(() => {
-        document.querySelectorAll('pre code').forEach((block) => {
-          hljs.highlightElement(block as HTMLElement);
-        });
-      }, 50);
-    }
-  }, [code, language, theme]);
-  
-  const zoomIn = () => setFontSize(prev => Math.min(prev + 2, 24));
-  const zoomOut = () => setFontSize(prev => Math.max(prev - 2, 10));
-  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  
-  if (!code) return <div className="p-4">Loading code...</div>;
-  
-  return (
-    <div>
-      <div className="flex justify-end gap-2 mb-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={zoomOut}
-          title="Zoom out"
-        >
-          A-
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={zoomIn}
-          title="Zoom in"
-        >
-          A+
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={toggleTheme}
-          title="Toggle theme"
-        >
-          {theme === 'light' ? '🌙' : '☀️'}
-        </Button>
-      </div>
-      <div className="overflow-auto max-h-[600px]">
-        <pre 
-          className={`p-4 rounded ${theme === 'dark' ? 'bg-[#282c34] text-white' : 'bg-gray-50'}`}
-          style={{ fontSize: `${fontSize}px`, fontWeight: theme === 'dark' ? 500 : 400 }}
-        >
-          <code className={language}>{code}</code>
-        </pre>
-      </div>
-    </div>
-  );
-};
+const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({ 
+  resource, 
+  open, 
+  onOpenChange 
+}) => {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(resource?.bookmark_count || 0);
+  const [viewMode, setViewMode] = useState<'preview' | 'raw'>('preview');
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [zipContents, setZipContents] = useState<ZipItem[]>([]);
+  const [isLoadingZip, setIsLoadingZip] = useState(false);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [selectedZipItem, setSelectedZipItem] = useState<ZipItem | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [splitPosition, setSplitPosition] = useState(25); // Default split at 25%
+  const [isResizing, setIsResizing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-// Helper function to get language for syntax highlighting
-const getLanguageFromExtension = (ext: string) => {
-  const map: Record<string, string> = {
-    js: 'javascript',
-    ts: 'typescript',
-    py: 'python',
-    java: 'java',
-    html: 'html',
-    css: 'css',
-    php: 'php',
-    c: 'c',
-    cpp: 'cpp',
-    h: 'c',
-    rb: 'ruby',
-    go: 'go',
-    json: 'json',
-    xml: 'xml',
-    yaml: 'yaml',
-    yml: 'yaml',
-    md: 'markdown',
-    sql: 'sql'
-  };
-  
-  return map[ext] || '';
-};
-
-// Office preview component
-const OfficePreview = ({ url, fileName }: { url: string, fileName: string }) => {
-  const ext = fileName.split('.').pop()?.toLowerCase();
-  
-  return (
-    <div className="p-4 text-center">
-      <p>Office document preview is limited in browser</p>
-      <div className="flex justify-center gap-2 mt-4">
-        <Button 
-          variant="outline" 
-          onClick={() => window.open(url, '_blank')}
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Download
-        </Button>
-        <Button 
-          onClick={() => {
-            // For Office Online viewer
-            const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(window.location.origin + url)}`;
-            window.open(viewerUrl, '_blank');
-          }}
-        >
-          <ExternalLink className="h-4 w-4 mr-2" />
-          Open in Office Online
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({ resource, open, onOpenChange }) => {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [zipContents, setZipContents] = useState<{name: string, path: string, size: number, dir: boolean}[]>([]);
-  const [isExtractingZip, setIsExtractingZip] = useState(false);
-  const [currentZipPath, setCurrentZipPath] = useState<string>('');
-  const [zipFileContent, setZipFileContent] = useState<string | null>(null);
-  const [zipFileType, setZipFileType] = useState<string | null>(null);
-  
   useEffect(() => {
-    if (open && resource) {
-      loadPreview();
-    } else {
-      // Clean up preview URL when dialog closes
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
-    }
-    
-    // Cleanup function to revoke object URL when component unmounts
+    // Clean up any object URLs when component unmounts or resource changes
     return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [open, resource]);
-  
-  const extractZipContents = async (blob: Blob) => {
-    setIsExtractingZip(true);
-    try {
-      const zip = new JSZip();
-      
-      // If blob is empty, use the previewUrl to fetch the zip
-      let contents;
-      if (blob.size === 0 && previewUrl) {
-        const zipData = await (await fetch(previewUrl)).blob();
-        contents = await zip.loadAsync(zipData);
-      } else {
-        contents = await zip.loadAsync(blob);
+      if (fileUrl) {
+        URL.revokeObjectURL(fileUrl);
       }
       
-      // Create a map to track directories
-      const directories = new Set();
-      
-      // First pass: identify all directories
-      Object.keys(contents.files).forEach(path => {
-        // Add explicit directories
-        if (contents.files[path].dir) {
-          directories.add(path);
-        }
-        
-        // Add implicit directories (parent folders)
-        const parts = path.split('/');
-        if (parts.length > 1) {
-          for (let i = 1; i < parts.length; i++) {
-            const parentPath = parts.slice(0, i).join('/') + '/';
-            directories.add(parentPath);
+      // Clean up all blob URLs
+      const cleanupUrls = (items: ZipItem[]) => {
+        items.forEach(item => {
+          if (item.url && item.url.startsWith('blob:')) {
+            URL.revokeObjectURL(item.url);
           }
-        }
-      });
-      
-      // Get root level files and directories
-      const rootFiles = [];
-      
-      // Add directories first
-      Array.from(directories)
-        .filter(dir => !dir.includes('/') || (dir.split('/').length === 2 && dir.endsWith('/')))
-        .sort()
-        .forEach(dir => {
-          rootFiles.push({
-            name: dir.replace('/', ''),
-            path: dir,
-            size: 0,
-            dir: true
-          });
+          if (item.children) {
+            cleanupUrls(item.children);
+          }
         });
-      
-      // Then add files (including hidden files)
-      Object.keys(contents.files)
-        .filter(path => !path.includes('/') && !contents.files[path].dir)
-        .sort()
-        .forEach(path => {
-          rootFiles.push({
-            name: path,
-            path: path,
-            size: contents.files[path]._data.uncompressedSize,
-            dir: false
-          });
-        });
-      
-      setZipContents(rootFiles);
-      setCurrentZipPath('');
-      setZipFileContent(null);
-      setZipFileType(null);
-    } catch (error) {
-      console.error('Failed to extract ZIP contents:', error);
-      toast.error('Failed to read ZIP file');
-    } finally {
-      setIsExtractingZip(false);
-    }
-  };
-  
-  // Helper function to determine file type
-  const getFileType = (filename: string) => {
-    const ext = filename.split('.').pop()?.toLowerCase() || '';
-    
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
-    if (['mp4', 'webm', 'avi', 'mov'].includes(ext)) return 'video';
-    if (['pdf'].includes(ext)) return 'pdf';
-    if (['js', 'ts', 'py', 'java', 'html', 'css', 'php', 'c', 'cpp', 'h', 'rb', 'go', 'json', 'xml', 'yaml', 'yml', 'md', 'txt', 'log', 'csv', 'sql'].includes(ext)) return 'code';
-    if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) return 'office';
-    
-    return 'other';
-  };
-  
-  // Simple text preview component
-  const TextPreview = ({ url }: { url: string }) => {
-    const [text, setText] = useState<string>('Loading...');
-    
-    useEffect(() => {
-      const fetchText = async () => {
-        try {
-          const response = await fetch(url);
-          const content = await response.text();
-          setText(content);
-        } catch (error) {
-          console.error('Failed to load text content:', error);
-          setText('Error loading content');
-        }
       };
       
-      fetchText();
-    }, [url]);
-    
-    return <>{text}</>;
-  };
-  
-  // Add this function to handle ZIP navigation
-  const navigateZipContents = async (path: string) => {
-    if (!previewUrl) return;
-    
-    try {
-      setIsLoading(true);
-      
-      // If path is empty or root, go back to the root level
-      if (!path || path === '/') {
-        setZipFileContent(null);
-        setZipFileType(null);
-        setCurrentZipPath('');
-        const zipData = await (await fetch(previewUrl)).blob();
-        await extractZipContents(zipData);
-        setIsLoading(false);
-        return;
-      }
-      
-      const zip = new JSZip();
-      const zipData = await (await fetch(previewUrl)).blob();
-      const contents = await zip.loadAsync(zipData);
-      
-      // Check if path is a directory
-      if (path.endsWith('/')) {
-        // Create a map to track directories
-        const directories = new Map(); // Use Map to store dir name -> full path
-        
-        // Identify all directories at this level
-        Object.keys(contents.files).forEach(filename => {
-          if (filename.startsWith(path) && filename !== path) {
-            const relativePath = filename.slice(path.length);
-            const parts = relativePath.split('/');
-            
-            if (parts.length > 1 && parts[0]) {
-              // This is a file in a subdirectory
-              const dirName = parts[0] + '/';
-              directories.set(dirName, path + dirName);
-            }
-          }
-        });
-        
-        // Filter contents to show files and identified directories at this level
-        const dirContents = [];
-        
-        // Add parent directory for easier navigation
-        if (path !== '') {
-          const parentPath = path.split('/').slice(0, -2).join('/') + '/';
-          dirContents.push({
-            name: '../',
-            path: parentPath || '',
-            size: 0,
-            dir: true
-          });
-        }
-        
-        // Add directories first
-        Array.from(directories.entries()).forEach(([dirName, fullPath]) => {
-          dirContents.push({
-            name: dirName,
-            path: fullPath,
-            size: 0,
-            dir: true
-          });
-        });
-        
-        // Then add files (including hidden files)
-        Object.keys(contents.files)
-          .filter(filename => 
-            filename.startsWith(path) && 
-            filename !== path && 
-            !filename.slice(path.length).includes('/')
-          )
-          .forEach(filename => {
-            dirContents.push({
-              name: filename.slice(path.length),
-              path: filename,
-              size: contents.files[filename].uncompressedSize,
-              dir: filename.endsWith('/')
-            });
-          });
-        
-        setZipContents(dirContents);
-        setCurrentZipPath(path);
-        setZipFileContent(null);
-        setZipFileType(null);
-      } else {
-        // It's a file, extract and display its content
-        const file = contents.files[path];
-        if (!file) {
-          toast.error('File not found in ZIP');
-          return;
-        }
-        
-        const fileData = await file.async('blob');
-        const fileUrl = URL.createObjectURL(fileData);
-        const fileType = getFileType(path);
-        
-        setZipFileContent(fileUrl);
-        setZipFileType(fileType);
-        setCurrentZipPath(path);
-      }
-    } catch (error) {
-      console.error('Failed to navigate ZIP contents:', error);
-      toast.error('Failed to read ZIP file');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      cleanupUrls(zipContents);
+    };
+  }, [resource, fileUrl, zipContents]);
 
-  const loadPreview = async () => {
+  useEffect(() => {
+    // Reset state when resource changes
+    setFileUrl(null);
+    setSelectedFile(null);
+    setZipContents([]);
+    setSelectedZipItem(null);
+    setExpandedFolders({});
+    setBookmarkCount(resource?.bookmark_count || 0);
+    
+    // If it's a ZIP file, process it
+    if (resource && resource.file_name.toLowerCase().endsWith('.zip')) {
+      handleZipFile();
+    } else if (resource) {
+      // For other file types, load preview
+      loadResourcePreview();
+    }
+  }, [resource]);
+
+  // Handle mouse events for resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newPosition = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      
+      // Limit the resize range (10% to 50%)
+      const limitedPosition = Math.max(10, Math.min(50, newPosition));
+      setSplitPosition(limitedPosition);
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+    
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const loadResourcePreview = async () => {
     if (!resource) return;
     
-    setIsLoading(true);
+    setIsLoadingPreview(true);
     try {
-      const blob = await resourcesAPI.downloadResource(resource.id.toString());
+      const blob = await resourcesAPI.downloadResource(resource.id);
       const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
-      
-      // If it's a ZIP file, extract contents
-      if (resource.file_name.toLowerCase().endsWith('.zip')) {
-        await extractZipContents(blob);
-      }
+      setFileUrl(url);
     } catch (error) {
-      console.error('Failed to load preview:', error);
+      console.error('Failed to load resource preview:', error);
       toast.error('Failed to load preview');
     } finally {
-      setIsLoading(false);
+      setIsLoadingPreview(false);
     }
   };
-  
-  if (!resource) return null;
+
+  if (!resource) {
+    return null;
+  }
 
   const handleDownload = async () => {
+    if (!resource) return;
+    
+    setIsDownloading(true);
     try {
-      const blob = await resourcesAPI.downloadResource(resource.id.toString());
+      const blob = await resourcesAPI.downloadResource(resource.id);
       
-      // Create download link
+      // Create a download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';
@@ -478,324 +178,570 @@ const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({ resource, o
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      toast.success('Downloading resource');
+      toast.success('Download started');
     } catch (error) {
       console.error('Failed to download resource:', error);
       toast.error('Failed to download resource');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+  
+  const handleBookmark = async () => {
+    if (!resource) return;
+    
+    setIsBookmarking(true);
+    try {
+      const response = await resourcesAPI.bookmarkResource(resource.id);
+      setBookmarkCount(response.bookmark_count);
+      toast.success('Resource bookmarked');
+    } catch (error) {
+      console.error('Failed to bookmark resource:', error);
+      toast.error('Failed to bookmark resource');
+    } finally {
+      setIsBookmarking(false);
     }
   };
 
-  const getResourceIcon = () => {
-    const type = resource.type.toLowerCase();
-    const fileName = resource.file_name.toLowerCase();
+  const handleZipFile = async () => {
+    if (!resource) return;
     
-    if (type === 'document' || fileName.match(/\.(pdf|doc|docx|ppt|pptx|xls|xlsx)$/i)) {
-      return <FileText className="h-16 w-16 text-blue-500" />;
-    } else if (type === 'video' || fileName.match(/\.(mp4|webm|avi|mov|wmv)$/i)) {
-      return <Video className="h-16 w-16 text-red-500" />;
-    } else if (type === 'code' || fileName.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go)$/i)) {
-      return <Code className="h-16 w-16 text-green-500" />;
-    } else if (fileName.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-      return <ImageIcon className="h-16 w-16 text-purple-500" />;
-    } else if (fileName.match(/\.(zip|rar|7z|tar|gz)$/i)) {
-      return <Archive className="h-16 w-16 text-amber-500" />;
-    } else {
-      return <File className="h-16 w-16 text-gray-500" />;
+    setIsLoadingZip(true);
+    try {
+      const blob = await resourcesAPI.downloadResource(resource.id);
+      const zip = new JSZip();
+      const contents = await zip.loadAsync(blob);
+      
+      // Build a tree structure for the ZIP contents
+      const root: ZipItem[] = [];
+      const folders: Record<string, ZipItem> = {};
+      
+      // First pass: create all folders
+      Object.keys(contents.files).forEach(path => {
+        const file = contents.files[path];
+        const parts = path.split('/');
+        
+        // Skip the empty entry at the end of directory paths
+        if (file.dir && parts[parts.length - 1] === '') {
+          parts.pop();
+        }
+        
+        let currentPath = '';
+        let parentFolder: ZipItem | null = null;
+        
+        // Create folder hierarchy
+        for (let i = 0; i < parts.length - (file.dir ? 0 : 1); i++) {
+          const part = parts[i];
+          const newPath = currentPath ? `${currentPath}/${part}` : part;
+          currentPath = newPath;
+          
+          if (!folders[newPath]) {
+            const newFolder: ZipItem = {
+              name: part,
+              path: newPath,
+              type: 'folder',
+              isDir: true,
+              children: []
+            };
+            
+            folders[newPath] = newFolder;
+            
+            if (parentFolder) {
+              parentFolder.children!.push(newFolder);
+            } else {
+              root.push(newFolder);
+            }
+          }
+          
+          parentFolder = folders[newPath];
+        }
+      });
+      
+      // Second pass: add files to their parent folders
+      const filePromises = Object.keys(contents.files).map(async path => {
+        const file = contents.files[path];
+        if (!file.dir) {
+          const parts = path.split('/');
+          const fileName = parts.pop() || '';
+          const parentPath = parts.join('/');
+          
+          // Determine file type
+          let fileType = 'unknown';
+          if (path.endsWith('.md') || path.endsWith('.markdown')) {
+            fileType = 'markdown';
+          } else if (path.endsWith('.pdf')) {
+            fileType = 'pdf';
+          } else if (path.endsWith('.txt') || path.endsWith('.log') || path.endsWith('.csv')) {
+            fileType = 'text';
+          } else if (path.match(/\.(jpe?g|png|gif|bmp|webp)$/i)) {
+            fileType = 'image';
+          } else if (path.match(/\.(mp4|webm|mov|avi)$/i)) {
+            fileType = 'video';
+          } else if (path.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go|json|xml|yaml|yml)$/i)) {
+            fileType = 'code';
+          }
+          
+          // For text files, load the content as text
+          let content;
+          if (fileType === 'text' || fileType === 'code' || fileType === 'markdown') {
+            try {
+              content = await file.async('text');
+            } catch (e) {
+              console.error(`Failed to read ${path} as text:`, e);
+            }
+          }
+          
+          const fileBlob = await file.async('blob');
+          const fileUrl = URL.createObjectURL(fileBlob);
+          
+          const fileItem: ZipItem = {
+            name: fileName,
+            path: path,
+            type: fileType,
+            url: fileUrl,
+            content: content,
+            isDir: false
+          };
+          
+          if (parentPath && folders[parentPath]) {
+            folders[parentPath].children!.push(fileItem);
+          } else {
+            root.push(fileItem);
+          }
+        }
+      });
+      
+      await Promise.all(filePromises);
+      setZipContents(root);
+      
+      // Select first file by default if available
+      const findFirstFile = (items: ZipItem[]): ZipItem | null => {
+        for (const item of items) {
+          if (!item.isDir) {
+            return item;
+          }
+          if (item.children && item.children.length > 0) {
+            const found = findFirstFile(item.children);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+      
+      const firstFile = findFirstFile(root);
+      if (firstFile) {
+        setSelectedZipItem(firstFile);
+      }
+    } catch (error) {
+      console.error('Failed to process ZIP file:', error);
+      toast.error('Failed to process ZIP file');
+    } finally {
+      setIsLoadingZip(false);
+    }
+  };
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => ({
+      ...prev,
+      [path]: !prev[path]
+    }));
+  };
+
+  const getResourceIcon = () => {
+    switch (resource.type) {
+      case 'document':
+      case 'pdf':
+      case 'doc':
+      case 'ppt':
+      case 'excel':
+        return <FileText className="h-6 w-6 text-blue-500" />;
+      case 'video':
+        return <Video className="h-6 w-6 text-red-500" />;
+      case 'code':
+        return <Code className="h-6 w-6 text-green-500" />;
+      default:
+        return <File className="h-6 w-6 text-gray-500" />;
     }
   };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    else return (bytes / 1048576).toFixed(1) + ' MB';
+    else if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    else return (bytes / 1073741824).toFixed(1) + ' GB';
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  // Get user initials for avatar fallback
+  const getUserInitials = () => {
+    const firstName = resource.uploaded_by.first_name || '';
+    const lastName = resource.uploaded_by.last_name || '';
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
+  // Check if description might contain markdown or code
+  const isMarkdown = resource.description && (
+    resource.description.includes('#') || 
+    resource.description.includes('**') || 
+    resource.description.includes('```') ||
+    resource.description.includes('- ') ||
+    resource.description.includes('> ')
+  );
+
+  const isCode = resource.description && (
+    resource.description.includes('{') ||
+    resource.description.includes('function') ||
+    resource.description.includes('class') ||
+    resource.description.includes('def ') ||
+    resource.description.includes('import ') ||
+    resource.description.includes('const ') ||
+    resource.description.includes('let ') ||
+    resource.description.includes('var ')
+  );
+
+  // Determine resource file type for preview
+  const getResourceFileType = () => {
+    const fileName = resource.file_name.toLowerCase();
+    
+    if (fileName.endsWith('.pdf')) {
+      return 'pdf';
+    } else if (fileName.match(/\.(md|markdown)$/i)) {
+      return 'markdown';
+    } else if (fileName.match(/\.(jpe?g|png|gif|bmp|webp)$/i)) {
+      return 'image';
+    } else if (fileName.match(/\.(mp4|webm|mov|avi)$/i)) {
+      return 'video';
+    } else if (fileName.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go|json|xml|yaml|yml)$/i)) {
+      return 'code';
+    } else if (fileName.match(/\.(txt|log|csv)$/i)) {
+      return 'text';
+    } else if (fileName.endsWith('.zip')) {
+      return 'zip';
+    } else {
+      return 'unknown';
+    }
+  };
+
+  // Render ZIP file tree with collapsible folders
+  const renderZipTree = (items: ZipItem[], level = 0) => {
+    return (
+      <ul className={`pl-${level > 0 ? '4' : '0'} m-0`}>
+        {items.map(item => (
+          <li key={item.path} className="py-1">
+            {item.isDir ? (
+              <div>
+                <div 
+                  className="flex items-center gap-2 p-1 rounded cursor-pointer hover:bg-muted/50"
+                  onClick={() => toggleFolder(item.path)}
+                >
+                  {expandedFolders[item.path] ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                  <Folder className="h-4 w-4 text-blue-500" />
+                  <span>{item.name}</span>
+                </div>
+                {expandedFolders[item.path] && item.children && item.children.length > 0 && 
+                  renderZipTree(item.children, level + 1)
+                }
+              </div>
+            ) : (
+              <div 
+                className={`flex items-center gap-2 p-1 rounded cursor-pointer hover:bg-muted/50 ml-6 ${
+                  selectedZipItem?.path === item.path ? 'bg-muted' : ''
+                }`}
+                onClick={() => setSelectedZipItem(item)}
+              >
+                {item.type === 'image' ? (
+                  <File className="h-4 w-4 text-green-500" />
+                ) : item.type === 'pdf' ? (
+                  <FileText className="h-4 w-4 text-red-500" />
+                ) : item.type === 'code' ? (
+                  <Code className="h-4 w-4 text-orange-500" />
+                ) : item.type === 'text' ? (
+                  <FileText className="h-4 w-4 text-gray-500" />
+                ) : (
+                  <File className="h-4 w-4 text-gray-500" />
+                )}
+                <span>{item.name}</span>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
+  // Render ZIP file contents with resizable panels
+  const renderZipContents = () => {
+    if (isLoadingZip) {
+      return (
+        <div className="flex items-center justify-center h-40">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2">Loading ZIP contents...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (zipContents.length === 0) {
+      return (
+        <div className="text-center p-4">
+          <p>No files found in ZIP archive.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        ref={containerRef}
+        className="flex h-[500px] relative border rounded-md"
+      >
+        {/* File tree panel */}
+        <div 
+          className="border-r overflow-auto"
+          style={{ width: `${splitPosition}%` }}
+        >
+          <div className="p-2 bg-muted font-medium border-b flex justify-between items-center">
+            <span>Files</span>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          <div className="p-2">
+            {renderZipTree(zipContents)}
+          </div>
+        </div>
+        
+        {/* Resizer handle */}
+        <div
+          ref={resizeRef}
+          className="absolute top-0 bottom-0 w-1 bg-gray-300 hover:bg-primary cursor-col-resize z-10"
+          style={{ left: `${splitPosition}%` }}
+          onMouseDown={() => setIsResizing(true)}
+        />
+        
+        {/* Preview panel */}
+        <div 
+          className="overflow-auto"
+          style={{ width: `${100 - splitPosition}%` }}
+        >
+          {selectedZipItem && !selectedZipItem.isDir ? (
+            <div className="h-full flex flex-col">
+              <div className="p-2 bg-muted font-medium border-b">
+                {selectedZipItem.name}
+              </div>
+              <div className="flex-1 overflow-auto p-2">
+                <ResourceViewer 
+                  resourceType={selectedZipItem.type}
+                  fileUrl={selectedZipItem.url || ''}
+                  fileName={selectedZipItem.name}
+                  content={selectedZipItem.content}
+                />
+              </div>
+            </div>
+          ) : selectedZipItem && selectedZipItem.isDir ? (
+            <div className="flex items-center justify-center h-full">
+              <p>Folder: {selectedZipItem.name} ({selectedZipItem.children?.length || 0} items)</p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p>Select a file to preview</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render file preview for non-ZIP files
+  const renderFilePreview = () => {
+    if (isLoadingPreview) {
+      return (
+        <div className="flex items-center justify-center h-40">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-2">Loading preview...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!fileUrl) {
+      return (
+        <div className="text-center p-4">
+          <p>Preview not available.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="border rounded-md overflow-hidden w-full">
+        <ResourceViewer 
+          resourceType={getResourceFileType()}
+          fileUrl={fileUrl}
+          fileName={resource.file_name}
+        />
+      </div>
+    );
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`${isFullscreen ? 'max-w-[95vw] w-[95vw] h-[90vh]' : 'w-full sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw]'} max-h-[90vh] overflow-y-auto`}>
         <DialogHeader>
-          <DialogTitle>{resource.title}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {getResourceIcon()}
+            {resource.title}
+            <div className="ml-auto">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                onClick={() => setIsFullscreen(!isFullscreen)}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </Button>
+            </div>
+          </DialogTitle>
         </DialogHeader>
         
-        {/* Preview Section */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : previewUrl ? (
-          <>
-            <div className="border rounded-md overflow-hidden mb-4">
-              {(() => {
-                const fileName = resource.file_name.toLowerCase();
-                
-                // Handle code files
-                if (fileName.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go|json|xml|yaml|yml|md|sql)$/i)) {
-                  return <CodePreview url={previewUrl} fileName={fileName} />;
-                }
-                
-                // Handle Office documents
-                if (fileName.match(/\.(xlsx|xls|docx|doc|pptx|ppt)$/i)) {
-                  return <OfficePreview url={previewUrl} fileName={fileName} />;
-                }
-                
-                // Handle video files
-                if (resource.type.toLowerCase() === 'video' || fileName.match(/\.(mp4|webm|avi|mov|wmv)$/i)) {
-                  return (
-                    <video 
-                      src={previewUrl} 
-                      controls 
-                      className="w-full max-h-[400px]"
-                    />
-                  );
-                }
-                
-                // Handle image files
-                if (fileName.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-                  return (
-                    <img 
-                      src={previewUrl} 
-                      alt={resource.title} 
-                      className="w-full max-h-[400px] object-contain"
-                    />
-                  );
-                }
-                
-                // Handle PDF files
-                if (fileName.match(/\.(pdf)$/i)) {
-                  return (
-                    <iframe 
-                      src={previewUrl} 
-                      className="w-full h-[800px]" 
-                      title={resource.title}
-                    />
-                  );
-                }
-                
-                // Default fallback
-                return (
-                  <div className="p-4 text-center">
-                    <p>Preview not available for this file type</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-2"
-                      onClick={() => window.open(previewUrl, '_blank')}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Open in new tab
-                    </Button>
-                  </div>
-                );
-              })()}
+        <div className="space-y-4">
+          {/* Resource metadata with user avatar */}
+          <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
+            <Avatar className="h-12 w-12 border">
+              {resource.uploaded_by.profile_picture_data ? (
+                <AvatarImage src={resource.uploaded_by.profile_picture_data} alt={`${resource.uploaded_by.first_name} ${resource.uploaded_by.last_name}`} />
+              ) : (
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {getUserInitials()}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            
+            <div className="flex-1">
+              <div className="font-medium">
+                {resource.uploaded_by.first_name} {resource.uploaded_by.last_name}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Uploaded {formatDistanceToNow(new Date(resource.uploaded_at), { addSuffix: true })}
+              </div>
             </div>
             
-            {/* ZIP Contents Section */}
-            {resource.file_name.match(/\.zip$/i) && (
-              <div className="border rounded-md p-4 mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-medium">ZIP Contents</h3>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => {
-                      if (zipFileContent) {
-                        // If viewing a file, go back to the current directory
-                        setZipFileContent(null);
-                        setZipFileType(null);
-                      } else {
-                        // Go to root directly
-                        navigateZipContents('');
-                      }
-                    }}
-                  >
-                    Root
-                  </Button>
-                </div>
-                
-                {isExtractingZip || isLoading ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                    <span>Loading...</span>
-                  </div>
-                ) : zipFileContent ? (
-                  <div className="max-h-[600px] overflow-auto">
-                    {zipFileType === 'image' && (
-                      <img src={zipFileContent} alt={currentZipPath} className="max-w-full" />
-                    )}
-                    {zipFileType === 'video' && (
-                      <video src={zipFileContent} controls className="max-w-full" />
-                    )}
-                    {zipFileType === 'pdf' && (
-                      <div className="pdf-container w-full h-[600px]">
-                        <object
-                          data={zipFileContent}
-                          type="application/pdf"
-                          width="100%"
-                          height="100%"
-                        >
-                          <p>Your browser doesn't support PDF viewing. 
-                            <a href={zipFileContent} target="_blank" rel="noopener noreferrer">Download PDF</a>
-                          </p>
-                        </object>
-                      </div>
-                    )}
-                    {zipFileType === 'code' && (
-                      <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded overflow-auto">
-                        <pre className="text-sm">
-                          <TextPreview url={zipFileContent} />
-                        </pre>
-                      </div>
-                    )}
-                    {zipFileType === 'office' && (
-                      <div className="p-0">
-                        <iframe 
-                          src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(window.location.origin + zipFileContent)}`}
-                          className="w-full h-[600px] border-0" 
-                          title={currentZipPath}
-                        />
-                      </div>
-                    )}
-                    {zipFileType === 'other' && (
-                      <div className="p-0">
-                        <iframe 
-                          src={zipFileContent} 
-                          className="w-full h-[600px] border-0" 
-                          title={currentZipPath}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ) : zipContents.length > 0 ? (
-                  <div className="max-h-[300px] overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="border-b">
-                        <tr>
-                          <th className="text-left py-2">Name</th>
-                          <th className="text-right py-2">Size</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {zipContents.map((file, index) => (
-                          <tr 
-                            key={index} 
-                            className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                            onClick={() => navigateZipContents(file.path)}
-                          >
-                            <td className="py-2 flex items-center">
-                              {file.dir ? (
-                                <Folder className="h-4 w-4 mr-2 text-blue-500" />
-                              ) : (
-                                <File className="h-4 w-4 mr-2 text-gray-500" />
-                              )}
-                              {file.name}
-                            </td>
-                            <td className="text-right py-2">{file.dir ? '-' : formatFileSize(file.size)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No files found in ZIP archive</p>
-                )}
-              </div>
-            )}
-          </>
-        ) : null}
-        
-        <div className="flex flex-col md:flex-row gap-4 py-4">
-          <div className="flex items-center justify-center">
-            {getResourceIcon()}
+            <div className="text-right">
+              <div className="text-sm font-medium">{resource.file_name}</div>
+              <div className="text-xs text-muted-foreground">{formatFileSize(resource.file_size)}</div>
+            </div>
           </div>
           
-          <div className="flex-1 space-y-4">
-            <div>
-              <h4 className="text-sm font-medium">Description</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                {resource.description || 'No description provided'}
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-medium">Creator</h4>
-              <div className="flex items-center gap-2 mt-2">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage 
-                    src={resource.uploaded_by.profile_picture_data || resource.uploaded_by.avatar} 
-                    alt={resource.uploaded_by.first_name || 'User'} 
-                  />
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {resource.uploaded_by.first_name?.[0] || resource.uploaded_by.username?.[0] || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium">{resource.uploaded_by.first_name} {resource.uploaded_by.last_name}</p>
-                  <p className="text-xs text-muted-foreground">{resource.uploaded_by.username}</p>
-                </div>
+          {/* Additional metadata */}
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {resource.category_name && (
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Category:</span>
+                <span>{resource.category_name}</span>
               </div>
-            </div>
+            )}
             
-            <div>
-              <h4 className="text-sm font-medium">Details</h4>
-              <div className="grid grid-cols-2 gap-2 mt-1 text-sm">
-                <div>
-                  <span className="text-muted-foreground">File name:</span>
-                </div>
-                <div>{resource.file_name}</div>
-                
-                <div>
-                  <span className="text-muted-foreground">File size:</span>
-                </div>
-                <div>{formatFileSize(resource.file_size)}</div>
-                
-                <div>
-                  <span className="text-muted-foreground">Type:</span>
-                </div>
-                <div>{resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}</div>
-                
-                <div>
-                  <span className="text-muted-foreground">Category:</span>
-                </div>
-                <div>{resource.category_name || 'Uncategorized'}</div>
-                
-                <div>
-                  <span className="text-muted-foreground">Uploaded on:</span>
-                </div>
-                <div>{formatDate(resource.uploaded_at)}</div>
-                
-                <div>
-                  <span className="text-muted-foreground">Downloads:</span>
-                </div>
-                <div>{resource.download_count}</div>
-              </div>
-            </div>
+
             
-            <div className="flex flex-wrap gap-2">
-              {resource.category_name && (
-                <Badge variant="outline" className="bg-primary/5">
-                  {resource.category_name}
-                </Badge>
-              )}
-              <Badge variant="outline">
-                {resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}
-              </Badge>
+            <div className="flex items-center gap-2">
+              <Bookmark className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Bookmarks:</span>
+              <span>{resource.bookmark_count || 0}</span>
             </div>
           </div>
+          
+          {/* Description */}
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium">Description</h3>
+            
+            {resource.description ? (
+              <div className="border rounded-md p-4 bg-muted/30">
+                {isMarkdown || isCode ? (
+                  <Tabs defaultValue={isMarkdown ? "markdown" : "code"} className="w-full">
+                    <TabsList>
+                      {isMarkdown && <TabsTrigger value="markdown">Markdown</TabsTrigger>}
+                      {isCode && <TabsTrigger value="code">Code</TabsTrigger>}
+                      <TabsTrigger value="text">Plain Text</TabsTrigger>
+                    </TabsList>
+                    
+                    {isMarkdown && (
+                      <TabsContent value="markdown" className="mt-2">
+                        <div className="prose dark:prose-invert max-w-none">
+                          <ReactMarkdown>{resource.description}</ReactMarkdown>
+                        </div>
+                      </TabsContent>
+                    )}
+                    
+                    {isCode && (
+                      <TabsContent value="code" className="mt-2">
+                        <pre className="bg-muted p-4 rounded-md overflow-x-auto">
+                          <code className="text-sm font-mono">{resource.description}</code>
+                        </pre>
+                      </TabsContent>
+                    )}
+                    
+                    <TabsContent value="text" className="mt-2">
+                      <p className="whitespace-pre-wrap">{resource.description}</p>
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <p className="whitespace-pre-wrap">{resource.description}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground italic">No description provided</p>
+            )}
+          </div>
+          
+          {/* File Preview */}
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium">Preview</h3>
+            {resource.file_name.toLowerCase().endsWith('.zip') ? (
+              renderZipContents()
+            ) : (
+              renderFilePreview()
+            )}
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex justify-end gap-2">
+            <Button 
+              onClick={handleBookmark} 
+              disabled={isBookmarking}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Bookmark className="h-4 w-4" />
+              {isBookmarking ? 'Bookmarking...' : 'Bookmark'}
+            </Button>
+            
+            <Button 
+              onClick={handleDownload} 
+              disabled={isDownloading}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              {isDownloading ? 'Downloading...' : 'Download'}
+            </Button>
+          </div>
         </div>
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <Button onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

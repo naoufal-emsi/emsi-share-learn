@@ -52,6 +52,7 @@ const Events: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isTeacher = user?.role === 'teacher';
+  const canCreateEvents = user?.role === 'admin' || user?.role === 'administration';
   
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +167,7 @@ const Events: React.FC = () => {
             </p>
           </div>
           
-          {isTeacher && (
+          {canCreateEvents && (
             <Button 
               className="bg-primary hover:bg-primary-dark"
               onClick={() => setCreateDialogOpen(true)}
@@ -182,7 +183,7 @@ const Events: React.FC = () => {
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
             <TabsTrigger value="past">Past</TabsTrigger>
             <TabsTrigger value="registered">Registered</TabsTrigger>
-            {isTeacher && (
+            {(isTeacher || canCreateEvents) && (
               <TabsTrigger value="managed">Managed</TabsTrigger>
             )}
           </TabsList>
@@ -442,7 +443,7 @@ const Events: React.FC = () => {
             )}
           </TabsContent>
           
-          {isTeacher && (
+          {(isTeacher || canCreateEvents) && (
             <TabsContent value="managed" className="mt-0 space-y-6">
               {loading ? (
                 <div className="flex justify-center items-center py-12">
@@ -536,7 +537,7 @@ const Events: React.FC = () => {
         </Tabs>
       </div>
       
-      {isTeacher && (
+      {canCreateEvents && (
         <CreateEventDialog 
           open={createDialogOpen} 
           onOpenChange={setCreateDialogOpen}

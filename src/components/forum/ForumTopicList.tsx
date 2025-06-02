@@ -33,6 +33,7 @@ interface ForumTopic {
   };
   tags: string;
   view_count: number;
+  like_count: number;
   posts_count?: number;
   votes_count?: number;
   created_at: string;
@@ -207,7 +208,7 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
               </div>
               <div className="flex items-center">
                 <ThumbsUp className="h-4 w-4 text-muted-foreground mr-1" />
-                <span className="text-sm">{topic.votes_count || 0} likes</span>
+                <span className="text-sm">{topic.like_count || 0} likes</span>
               </div>
             </div>
           </CardContent>

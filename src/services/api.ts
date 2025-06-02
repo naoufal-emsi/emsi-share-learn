@@ -365,6 +365,12 @@ export const resourcesAPI = {
     return response.blob();
   },
 
+  bookmarkResource: async (resourceId: string) => {
+    return apiRequest(`/resources/${resourceId}/bookmark/`, {
+      method: 'POST',
+    });
+  },
+
   deleteResource: async (resourceId: string, roomId?: string) => {
     let url = `/resources/${resourceId}/`;
     if (roomId) {
@@ -777,6 +783,29 @@ export const forumsAPI = {
       console.error('Error in incrementView:', error);
       // Don't throw the error as this is not critical functionality
       return null;
+    }
+  },
+  
+  likeTopic: async (topicId: string) => {
+    try {
+      console.log(`Toggling like for topic ${topicId}`);
+      const response = await apiRequest(`/forums/topics/${topicId}/like_topic/`, {
+        method: 'POST',
+      });
+      return response;
+    } catch (error) {
+      console.error('Error in likeTopic:', error);
+      throw error;
+    }
+  },
+  
+  getLikeStatus: async (topicId: string) => {
+    try {
+      const response = await apiRequest(`/forums/topics/${topicId}/like_status/`);
+      return response;
+    } catch (error) {
+      console.error(`Error fetching like status for topic ${topicId}:`, error);
+      return { liked: false };
     }
   },
   

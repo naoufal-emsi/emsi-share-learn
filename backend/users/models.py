@@ -7,10 +7,11 @@ class User(AbstractUser):
         ('student', 'Student'),
         ('teacher', 'Teacher'),
         ('admin', 'Admin'),
+        ('administration', 'Administration'),
     ]
     
     email = models.EmailField(_('email address'), unique=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
+    role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='student')
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     bio = models.TextField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)

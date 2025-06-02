@@ -42,9 +42,9 @@ class UserListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        # Only allow teachers and admins to see user lists
+        # Only allow teachers, admins, and administration to see user lists
         user = self.request.user
-        if user.role in ['teacher', 'admin']:
+        if user.role in ['teacher', 'admin', 'administration']:
             return User.objects.all().order_by('date_joined')
         return User.objects.filter(id=user.id)
 

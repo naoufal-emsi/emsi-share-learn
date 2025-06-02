@@ -89,10 +89,6 @@ class ResourceViewSet(viewsets.ModelViewSet):
         try:
             resource = Resource.objects.get(pk=pk)
             if resource.file_data:
-                # Increment download count
-                resource.download_count += 1
-                resource.save(update_fields=['download_count'])
-                
                 # Create response with binary data
                 response = HttpResponse(
                     resource.file_data,
@@ -110,6 +106,21 @@ class ResourceViewSet(viewsets.ModelViewSet):
                     {'error': 'No file data available for this resource'},
                     status=status.HTTP_404_NOT_FOUND
                 )
+        except Resource.DoesNotExist:
+            raise Http404("Resource not found")
+            
+    @action(detail=True, methods=['post'], url_path='bookmark')
+    def bookmark(self, request, pk=None):
+        try:
+            resource = Resource.objects.get(pk=pk)
+            # Increment bookmark count
+            resource.bookmark_count += 1
+            resource.save(update_fields=['bookmark_count'])
+            
+            return Response({
+                'status': 'success',
+                'bookmark_count': resource.bookmark_count
+            })
         except Resource.DoesNotExist:
             raise Http404("Resource not found")
             

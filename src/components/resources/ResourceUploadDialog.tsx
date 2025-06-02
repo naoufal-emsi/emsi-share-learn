@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { resourcesAPI } from '@/services/api';
-import { uploadAPI } from '@/services/api';
 import { toast } from 'sonner';
-import { Upload, X, Search, Loader2, Archive } from 'lucide-react';
+import { Upload, X, Search, Loader2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import CodeEditor from '@/components/editor/CodeEditor';
+import MarkdownEditor from '@/components/editor/MarkdownEditor';
 
 interface ResourceUploadDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
   const [resourceType, setResourceType] = useState<string>('');
   const [categorySearch, setCategorySearch] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [editorMode, setEditorMode] = useState<'markdown' | 'code' | 'plain'>('plain');
 
   // Fetch categories
   useEffect(() => {
@@ -54,11 +56,6 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
   const filteredCategories = categories.filter(category => 
     category.name.toLowerCase().includes(categorySearch.toLowerCase())
   );
-  
-  // Debug categories
-  useEffect(() => {
-    console.log('Available categories:', categories);
-  }, [categories]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -89,6 +86,8 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
                   fileType.includes('application/javascript') ||
                   fileName.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go|json|xml|yaml|yml|md|sql)$/i)) {
           setResourceType('code');
+          // Set editor mode to code for code files
+          setEditorMode('code');
         } else if (fileType.includes('zip') || fileType.includes('archive') || 
                   fileName.match(/\.(zip|rar|7z|tar|gz)$/i)) {
           setResourceType('document'); // Use 'document' type for archives as 'archive' is not valid in backend
@@ -158,6 +157,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       setCategorySearch('');
       setResourceType('');
       setUploadProgress(0);
+      setEditorMode('plain');
       
       // Close dialog
       onOpenChange(false);
@@ -213,35 +213,6 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       await resourcesAPI.uploadResource(formData);
       cleanup();
       setUploadProgress(100);
-      
-      return;
-      
-      // The code below is commented out because the endpoint doesn't exist
-      /*
-      const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB chunks
-      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-      let uploadedChunks = 0;
-      
-      // Create metadata for the resource
-      const resourceMetadata = {
-        title: title.trim(),
-        description: description.trim(),
-        type: fileType || 'other',
-        category: selectedCategory || undefined,
-        room: roomId || undefined,
-        filename: file.name,
-        filesize: file.size,
-        filetype: file.type,
-        chunks: totalChunks
-      };
-      
-      // Create upload session
-      const sessionResponse = await resourcesAPI.createResourceUploadSession(resourceMetadata);
-      const sessionId = sessionResponse.session_id;
-      */
-      
-      // This code is no longer needed as we're using regular upload
-      
     } catch (error) {
       console.error('Chunked upload failed:', error);
       throw error;
@@ -250,7 +221,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Upload Resource</DialogTitle>
         </DialogHeader>
@@ -268,13 +239,42 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
           
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter resource description"
-              rows={3}
-            />
+            <Tabs value={editorMode} onValueChange={(value) => setEditorMode(value as 'markdown' | 'code' | 'plain')}>
+              <TabsList className="mb-2">
+                <TabsTrigger value="plain">Plain Text</TabsTrigger>
+                <TabsTrigger value="markdown">Markdown</TabsTrigger>
+                <TabsTrigger value="code">Code</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="plain" className="mt-0">
+                <Input
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Enter resource description"
+                  className="min-h-[100px]"
+                />
+              </TabsContent>
+              
+              <TabsContent value="markdown" className="mt-0">
+                <MarkdownEditor
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Enter markdown description..."
+                  className="min-h-[200px]"
+                />
+              </TabsContent>
+              
+              <TabsContent value="code" className="mt-0">
+                <CodeEditor
+                  value={description}
+                  onChange={setDescription}
+                  language="javascript"
+                  placeholder="Enter code..."
+                  className="min-h-[200px]"
+                />
+              </TabsContent>
+            </Tabs>
           </div>
           
           <div className="space-y-2">
@@ -313,12 +313,12 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
               </div>
               
               {showCategoryDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-60 overflow-auto">
                   {filteredCategories.length > 0 ? (
                     filteredCategories.map(category => (
                       <div
                         key={category.id}
-                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                         onClick={() => handleCategorySelect(category.id.toString(), category.name)}
                       >
                         {category.name}
@@ -356,7 +356,12 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
               <Button 
                 type="button"
                 variant={resourceType === 'code' ? "default" : "outline"} 
-                onClick={() => setResourceType('code')}
+                onClick={() => {
+                  setResourceType('code');
+                  if (editorMode === 'plain') {
+                    setEditorMode('code');
+                  }
+                }}
                 className="justify-start"
               >
                 Code

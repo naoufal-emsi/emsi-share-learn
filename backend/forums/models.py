@@ -33,6 +33,7 @@ class ForumTopic(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open')
     is_announcement = models.BooleanField(default=False)
     view_count = models.IntegerField(default=0)
+    like_count = models.IntegerField(default=0)
     is_solved = models.BooleanField(default=False)
     solved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='solved_topics')
     tags = models.CharField(max_length=500, blank=True, null=True)
@@ -103,6 +104,17 @@ class ForumSubscription(models.Model):
     
     def __str__(self):
         return f"{self.user.username} subscribed to {self.topic.title}"
+        
+class TopicLike(models.Model):
+    topic = models.ForeignKey(ForumTopic, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='topic_likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['topic', 'user']
+    
+    def __str__(self):
+        return f"{self.user.username} liked {self.topic.title}"
 
 class ForumAttachment(models.Model):
     post = models.ForeignKey(ForumPost, on_delete=models.CASCADE, related_name='attachments')

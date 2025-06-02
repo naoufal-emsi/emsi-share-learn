@@ -8,30 +8,30 @@ from .serializers import EventSerializer, EventAttendeeSerializer
 from rooms.permissions import IsOwnerOrReadOnly
 from datetime import datetime, timedelta
 
-class IsTeacherOrReadOnly(permissions.BasePermission):
+class IsAdminOrAdministrationOrReadOnly(permissions.BasePermission):
     """
-    Custom permission to only allow teachers to create events.
-    Students can only read events and attend them.
+    Custom permission to only allow admin and administration users to create events.
+    Teachers and students can only read events and attend them.
     """
     def has_permission(self, request, view):
         # Allow read permissions for any request
         if request.method in permissions.SAFE_METHODS:
             return True
             
-        # Write permissions are only allowed to teachers
-        return request.user.role == 'teacher'
+        # Write permissions are only allowed to admin and administration users
+        return request.user.role in ['admin', 'administration']
         
     def has_object_permission(self, request, view, obj):
         # Read permissions are allowed to any request
         if request.method in permissions.SAFE_METHODS:
             return True
             
-        # Write permissions are only allowed to the teacher who created the event
-        return request.user.role == 'teacher' and obj.created_by == request.user
+        # Write permissions are only allowed to admin and administration users who created the event
+        return request.user.role in ['admin', 'administration'] and obj.created_by == request.user
 
 class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
-    permission_classes = [permissions.IsAuthenticated, IsTeacherOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrAdministrationOrReadOnly]
     
     @action(detail=True, methods=['get'])
     def image(self, request, pk=None):

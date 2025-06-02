@@ -68,6 +68,7 @@ interface Topic {
   };
   tags: string;
   view_count: number;
+  like_count: number;
   created_at: string;
   is_solved: boolean;
   status: string;
@@ -100,6 +101,8 @@ const TopicDetail: React.FC = () => {
     }
   }, [location]);
 
+  const [isLiked, setIsLiked] = useState(false);
+  
   useEffect(() => {
     const fetchTopicDetails = async () => {
       if (!topicId) return;
@@ -118,10 +121,13 @@ const TopicDetail: React.FC = () => {
         console.log('Posts loaded from database:', postsData);
         setPosts(postsData.results || []);
         
-        // Check subscription status
+        // Check subscription and like status
         if (user) {
           const subscriptionStatus = await forumsAPI.getSubscriptionStatus(topicId);
           setIsSubscribed(subscriptionStatus.subscribed);
+          
+          const likeStatus = await forumsAPI.getLikeStatus(topicId);
+          setIsLiked(likeStatus.liked);
         }
       } catch (error) {
         console.error('Failed to fetch topic details:', error);
@@ -300,6 +306,40 @@ const TopicDetail: React.FC = () => {
       toast.error("Failed to update subscription. Please check your connection and try again.");
     }
   };
+  
+  const handleLikeTopic = async () => {
+    if (!topic) {
+      toast.error("Topic information not available");
+      return;
+    }
+    
+    if (!user) {
+      toast.error("Please log in to like topics");
+      return;
+    }
+    
+    try {
+      const response = await forumsAPI.likeTopic(topic.id.toString());
+      
+      if (!response || response.status !== 'success') {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Update the topic with the new like count and liked status
+      setTopic({
+        ...topic,
+        like_count: response.like_count
+      });
+      
+      // Toggle liked state
+      setIsLiked(response.liked);
+      
+      toast.success(response.liked ? "Topic liked!" : "Topic unliked!");
+    } catch (error) {
+      console.error('Failed to like topic:', error);
+      toast.error("Failed to update topic like. Please check your connection and try again.");
+    }
+  };
 
   const handleDownloadAttachment = async (type: 'topic' | 'post', id: number) => {
     try {
@@ -445,11 +485,24 @@ const TopicDetail: React.FC = () => {
                 <Eye className="h-3 w-3 mr-1" />
                 <span>{topic.view_count} views</span>
                 <span className="mx-1">•</span>
+                <ThumbsUp className="h-3 w-3 mr-1" />
+                <span>{topic.like_count} likes</span>
+                <span className="mx-1">•</span>
                 <span>{new Date(topic.created_at).toLocaleDateString()}</span>
               </div>
             </div>
             
             <div className="flex gap-2">
+              {user && (
+                <Button 
+                  variant={isLiked ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleLikeTopic()}
+                >
+                  <ThumbsUp className="h-3 w-3 mr-1" />
+                  {isLiked ? 'Liked' : 'Like Topic'}
+                </Button>
+              )}
               {isTopicCreator && (
                 <Button 
                   variant="outline" 
@@ -596,6 +649,7 @@ const TopicDetail: React.FC = () => {
                             size="sm" 
                             onClick={() => handleVote(post.id, 'upvote')}
                             className={`h-7 px-2 ${post.user_vote === 'upvote' ? 'text-green-600' : ''}`}
+                            title="Like this comment"
                           >
                             <ThumbsUp className="h-3 w-3 mr-1" />
                             {post.upvotes}
@@ -605,6 +659,7 @@ const TopicDetail: React.FC = () => {
                             size="sm" 
                             onClick={() => handleVote(post.id, 'downvote')}
                             className={`h-7 px-2 ${post.user_vote === 'downvote' ? 'text-red-600' : ''}`}
+                            title="Dislike this comment"
                           >
                             <ThumbsDown className="h-3 w-3 mr-1" />
                             {post.downvotes}
