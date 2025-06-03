@@ -151,6 +151,18 @@ const Notifications: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
+                    {notification.notification_type.name === 'resource_rejected' && (
+                      <p className="text-sm font-medium mt-1 text-amber-600">
+                        {notification.message.includes('Reason:') ? 
+                          notification.message.substring(notification.message.indexOf('Reason:')) : 
+                          ''}
+                      </p>
+                    )}
+                    {notification.notification_type.name === 'resource_rejected' && notification.metadata?.reason && (
+                      <p className="text-sm font-medium mt-1 text-amber-600">
+                        Reason: {notification.metadata.reason}
+                      </p>
+                    )}
                     {notification.action_text && (
                       <Button 
                         variant="link" 

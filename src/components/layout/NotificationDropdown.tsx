@@ -82,10 +82,9 @@ const NotificationDropdown: React.FC = () => {
         ));
       }
       
-      // Navigate if there's an action URL
-      if (notification.action_url) {
-        navigate(notification.action_url);
-      }
+      // Navigate to the notifications page regardless of action_url
+      navigate('/notifications');
+      
     } catch (error) {
       console.error('Failed to handle notification:', error);
     }

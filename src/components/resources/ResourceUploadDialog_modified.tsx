@@ -102,9 +102,6 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
         formData.append('description', description.trim());
         formData.append('file_data', file);
         
-        // Add default type - backend will override this based on file content
-        formData.append('type', 'document');
-        
         if (selectedCategory) {
           formData.append('category', selectedCategory);
         }
@@ -156,9 +153,6 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('file_data', file);
-      
-      // Add default type - backend will override this based on file content
-      formData.append('type', 'document');
       
       // Always set status to approved for all users
       formData.append('status', 'approved');

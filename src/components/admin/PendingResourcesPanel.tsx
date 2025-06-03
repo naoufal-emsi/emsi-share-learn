@@ -3,9 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, FileText, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { resourcesAPI } from '@/services/api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -32,6 +33,7 @@ const PendingResourcesPanel: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [confirmRejectDialogOpen, setConfirmRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [processingId, setProcessingId] = useState<number | null>(null);
 
@@ -42,7 +44,6 @@ const PendingResourcesPanel: React.FC = () => {
   const fetchPendingResources = async () => {
     setLoading(true);
     try {
-      // Use the direct API call with explicit status=pending filter
       const response = await fetch('http://127.0.0.1:8000/api/resources/?status=pending', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('emsi_access')}`
@@ -54,11 +55,8 @@ const PendingResourcesPanel: React.FC = () => {
       }
       
       const data = await response.json();
-      console.log('Direct API pending resources response:', data);
       
-      // Ensure we only get resources with pending status
       const pendingResources = data.results ? data.results.filter(r => r.status === 'pending') : [];
-      console.log('Filtered pending resources:', pendingResources);
       
       setResources(pendingResources);
     } catch (error) {
@@ -83,6 +81,11 @@ const PendingResourcesPanel: React.FC = () => {
     }
   };
 
+  const openConfirmRejectDialog = () => {
+    if (!selectedResource || !rejectionReason.trim()) return;
+    setConfirmRejectDialogOpen(true);
+  };
+
   const handleReject = async () => {
     if (!selectedResource || !rejectionReason.trim()) return;
     
@@ -92,6 +95,7 @@ const PendingResourcesPanel: React.FC = () => {
       toast.success(`Resource "${selectedResource.title}" rejected`);
       setResources(resources.filter(r => r.id !== selectedResource.id));
       setRejectDialogOpen(false);
+      setConfirmRejectDialogOpen(false);
       setRejectionReason('');
       setSelectedResource(null);
     } catch (error) {
@@ -199,6 +203,7 @@ const PendingResourcesPanel: React.FC = () => {
         </div>
       )}
 
+      {/* Rejection reason input dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -223,7 +228,7 @@ const PendingResourcesPanel: React.FC = () => {
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
             <Button 
               variant="destructive" 
-              onClick={handleReject}
+              onClick={openConfirmRejectDialog}
               disabled={!rejectionReason.trim() || processingId !== null}
             >
               {processingId !== null && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
@@ -232,6 +237,41 @@ const PendingResourcesPanel: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmation dialog */}
+      <AlertDialog open={confirmRejectDialogOpen} onOpenChange={setConfirmRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Confirm Rejection
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedResource && (
+                <div className="space-y-4">
+                  <p>Are you sure you want to reject the resource <span className="font-medium">"{selectedResource.title}"</span>?</p>
+                  <div className="bg-muted p-3 rounded-md border">
+                    <p className="font-medium mb-1">Rejection reason:</p>
+                    <p className="text-sm whitespace-pre-wrap">{rejectionReason}</p>
+                  </div>
+                  <p>This action cannot be undone and the student will be notified.</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmRejectDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleReject}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={processingId !== null}
+            >
+              {processingId !== null && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirm Rejection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

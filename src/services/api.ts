@@ -283,20 +283,22 @@ export const resourcesAPI = {
     category?: string;
     search?: string;
     status?: string;
+    uploaded_by?: string;
   }) => {
     let endpoint = '/resources/';
-    const queryParams = [];
+    const queryParams = new URLSearchParams();
     
     if (params) {
-      if (params.roomId) queryParams.push(`room=${params.roomId}`);
-      if (params.type) queryParams.push(`type=${params.type}`);
-      if (params.category) queryParams.push(`category=${params.category}`);
-      if (params.search) queryParams.push(`search=${encodeURIComponent(params.search)}`);
-      if (params.status) queryParams.push(`status=${params.status}`);
+      if (params.roomId) queryParams.append('room', params.roomId);
+      if (params.type) queryParams.append('type', params.type);
+      if (params.category) queryParams.append('category', params.category);
+      if (params.search) queryParams.append('search', params.search);
+      if (params.status) queryParams.append('status', params.status);
+      if (params.uploaded_by) queryParams.append('uploaded_by', params.uploaded_by);
     }
     
-    if (queryParams.length > 0) {
-      endpoint += `?${queryParams.join('&')}`;
+    if (queryParams.toString()) {
+      endpoint += `?${queryParams.toString()}`;
     }
     
     const response = await apiRequest(endpoint);
@@ -327,8 +329,8 @@ export const resourcesAPI = {
   getMyPendingResources: async () => {
     try {
       console.log('Fetching my pending resources from API');
-      // Use both my=true and status filters to get only the user's resources with any status
-      const response = await apiRequest('/resources/?my=true');
+      // Use status=my-pending filter to get only the user's pending resources
+      const response = await apiRequest('/resources/?status=my-pending');
       console.log('Raw my pending resources response:', response);
       
       // Filter results to include only resources with status pending, approved, or rejected
@@ -343,6 +345,16 @@ export const resourcesAPI = {
       };
     } catch (error) {
       console.error('Error fetching my pending resources:', error);
+      throw error;
+    }
+  },
+  
+  getAllPendingResources: async () => {
+    try {
+      const response = await apiRequest('/resources/?status=pending');
+      return response;
+    } catch (error) {
+      console.error('Error fetching all pending resources:', error);
       throw error;
     }
   },
@@ -495,12 +507,16 @@ export const resourcesAPI = {
     });
   },
   
-  rejectResource: async (resourceId: string, reason: string) => {
+  rejectResource: async (resourceId: string, rejection_reason: string) => {
     return apiRequest(`/resources/${resourceId}/reject/`, {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason: rejection_reason }),
     });
   },
+
 };
 
 // Events API
@@ -515,18 +531,18 @@ export const eventsAPI = {
     search?: string;
   }) => {
     let endpoint = '/events/';
-    const queryParams = [];
+    const queryParams = new URLSearchParams();
     
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value) {
-          queryParams.push(`${key}=${encodeURIComponent(value)}`);
+          queryParams.append(key, value);
         }
       });
     }
     
-    if (queryParams.length > 0) {
-      endpoint += `?${queryParams.join('&')}`;
+    if (queryParams.toString()) {
+      endpoint += `?${queryParams.toString()}`;
     }
     
     return apiRequest(endpoint);

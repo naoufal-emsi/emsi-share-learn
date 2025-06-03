@@ -3,9 +3,10 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Code, Video, Image as ImageIcon, FileArchive, File, Clock, RefreshCw } from 'lucide-react';
+import { FileText, Code, Video, Image as ImageIcon, FileArchive, File, Clock, RefreshCw, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import ResourceDetailDialog from '@/components/resources/ResourceDetailDialog';
+import { toast } from 'sonner';
 
 interface Resource {
   id: number;  // Changed from string to number to match API response
@@ -186,6 +187,39 @@ const MyPendingResources: React.FC = () => {
     setIsDetailDialogOpen(true);
   };
 
+  const handleDeleteResource = async (resourceId: number) => {
+    if (window.confirm('Are you sure you want to delete this resource?')) {
+      try {
+        // Get token from cookies or localStorage
+        const token = document.cookie.split('; ')
+          .find(row => row.startsWith('emsi_access='))?.split('=')[1] || 
+          localStorage.getItem('emsi_access');
+        
+        if (!token) {
+          throw new Error('Authentication token not found');
+        }
+        
+        const response = await fetch(`http://127.0.0.1:8000/api/resources/${resourceId}/`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to delete resource: ${response.status}`);
+        }
+        
+        // Remove the deleted resource from the state
+        setResources(prev => prev.filter(resource => resource.id !== resourceId));
+        toast.success('Resource deleted successfully');
+      } catch (error) {
+        console.error('Failed to delete resource:', error);
+        toast.error('Failed to delete resource');
+      }
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -254,6 +288,19 @@ const MyPendingResources: React.FC = () => {
                       <p className="text-xs text-red-700">{resource.rejection_reason}</p>
                     </div>
                   )}
+                  
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="mt-3" 
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card click event
+                      handleDeleteResource(resource.id);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -265,6 +312,7 @@ const MyPendingResources: React.FC = () => {
         resource={selectedResource}
         open={isDetailDialogOpen}
         onOpenChange={setIsDetailDialogOpen}
+        onDelete={(resourceId) => handleDeleteResource(parseInt(resourceId))}
       />
     </MainLayout>
   );

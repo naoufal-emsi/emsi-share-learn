@@ -133,7 +133,7 @@ const RoomDetails: React.FC = () => {
       try {
         const [roomData, resourcesData, quizzesData] = await Promise.all([
           roomsAPI.getRoomDetails(roomId),
-          resourcesAPI.getResources({ roomId }),
+          resourcesAPI.getResources({ roomId: roomId, status: 'approved' }),
           quizzesAPI.getQuizzes(roomId)
         ]);
         setRoom(roomData);

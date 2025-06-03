@@ -10,6 +10,7 @@ import ResourceDetailDialog from '@/components/resources/ResourceDetailDialog';
 import ResourceSearchFilters, { ResourceFilters } from '@/components/resources/ResourceSearchFilters';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import MyPendingResourcesSection from '../components/resources/MyPendingResourcesSection';
 
 interface Resource {
   id: string;
@@ -44,6 +45,7 @@ const Resources: React.FC = () => {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const [showPendingResources, setShowPendingResources] = useState(false); // Add state variable
 
   const fetchResources = async () => {
     setLoading(true);
@@ -65,6 +67,9 @@ const Resources: React.FC = () => {
       } else if (searchFilters.type) {
         params.type = searchFilters.type;
       }
+      
+      // Only show approved resources in the main view
+      params.status = 'approved';
       
       const response = await resourcesAPI.getResources(params);
       setResources(response.results);
@@ -118,21 +123,18 @@ const Resources: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Resources</h1>
-            <p className="text-muted-foreground">
-              Access and share learning materials
-            </p>
+            <p className="text-muted-foreground">Access and share learning materials</p>
           </div>
-          
           <div className="flex gap-2">
-            {user?.role === 'student' && (
-              <Button 
+            {(user?.role === 'student' || user?.role === 'admin' || user?.role === 'administration') && (
+              <Button
                 variant="outline"
-                onClick={() => window.location.href = '/resources/my-submissions'}
+                onClick={() => setShowPendingResources(!showPendingResources)}
               >
-                My Submissions
+                {showPendingResources ? 'All Resources' : user?.role === 'student' ? 'My Pending Resources' : 'Pending Resources'}
               </Button>
             )}
-            <Button 
+            <Button
               className="bg-primary hover:bg-primary-dark"
               onClick={() => setIsUploadDialogOpen(true)}
             >
@@ -141,93 +143,89 @@ const Resources: React.FC = () => {
             </Button>
           </div>
         </div>
-        
         <ResourceSearchFilters onSearch={handleSearch} />
-        
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="all">All Resources</TabsTrigger>
-            <TabsTrigger value="document">Documents</TabsTrigger>
-            <TabsTrigger value="video">Videos</TabsTrigger>
-            <TabsTrigger value="code">Code</TabsTrigger>
-            <TabsTrigger value="other">Other</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="all" className="mt-0">
-            {renderResourceList(resources, loading, handleResourceClick, handleDeleteResource, user?.id)}
-          </TabsContent>
-          
-          <TabsContent value="document" className="mt-0">
-            {renderResourceList(
-              resources.filter(r => 
-                r.type === 'document' || 
-                r.type === 'pdf' || 
-                r.type === 'doc' || 
-                r.type === 'ppt' || 
-                r.type === 'excel'
-              ), 
-              loading,
-              handleResourceClick,
-              handleDeleteResource,
-              user?.id
-            )}
-          </TabsContent>
-          
-          <TabsContent value="video" className="mt-0">
-            {renderResourceList(resources.filter(r => r.type === 'video'), loading, handleResourceClick, handleDeleteResource, user?.id)}
-          </TabsContent>
-          
-          <TabsContent value="code" className="mt-0">
-            {renderResourceList(resources.filter(r => r.type === 'code'), loading, handleResourceClick, handleDeleteResource, user?.id)}
-          </TabsContent>
-          
-          <TabsContent value="other" className="mt-0">
-            {renderResourceList(
-              resources.filter(r => 
-                r.type !== 'document' && 
-                r.type !== 'pdf' && 
-                r.type !== 'doc' && 
-                r.type !== 'ppt' && 
-                r.type !== 'excel' && 
-                r.type !== 'video' && 
-                r.type !== 'code'
-              ), 
-              loading,
-              handleResourceClick,
-              handleDeleteResource,
-              user?.id
-            )}
-          </TabsContent>
-        </Tabs>
+        {showPendingResources ? (
+          <MyPendingResourcesSection />
+        ) : (
+          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="all">All Resources</TabsTrigger>
+              <TabsTrigger value="document">Documents</TabsTrigger>
+              <TabsTrigger value="video">Videos</TabsTrigger>
+              <TabsTrigger value="code">Code</TabsTrigger>
+              <TabsTrigger value="other">Other</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all" className="mt-0">
+              {renderResourceList(resources, loading, handleResourceClick, handleDeleteResource, user?.id)}
+            </TabsContent>
+            <TabsContent value="document" className="mt-0">
+              {renderResourceList(
+                resources.filter(r =>
+                  r.type === 'document' ||
+                  r.type === 'pdf' ||
+                  r.type === 'doc' ||
+                  r.type === 'ppt' ||
+                  r.type === 'excel'
+                ),
+                loading,
+                handleResourceClick,
+                handleDeleteResource,
+                user?.id
+              )}
+            </TabsContent>
+            <TabsContent value="video" className="mt-0">
+              {renderResourceList(resources.filter(r => r.type === 'video'), loading, handleResourceClick, handleDeleteResource, user?.id)}
+            </TabsContent>
+            <TabsContent value="code" className="mt-0">
+              {renderResourceList(resources.filter(r => r.type === 'code'), loading, handleResourceClick, handleDeleteResource, user?.id)}
+            </TabsContent>
+            <TabsContent value="other" className="mt-0">
+              {renderResourceList(
+                resources.filter(r =>
+                  r.type !== 'document' &&
+                  r.type !== 'pdf' &&
+                  r.type !== 'doc' &&
+                  r.type !== 'ppt' &&
+                  r.type !== 'excel' &&
+                  r.type !== 'video' &&
+                  r.type !== 'code'
+                ),
+                loading,
+                handleResourceClick,
+                handleDeleteResource,
+                user?.id
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
+        <ResourceUploadDialog
+          open={isUploadDialogOpen}
+          onOpenChange={setIsUploadDialogOpen}
+          onSuccess={fetchResources}
+        />
+        <ResourceDetailDialog
+          resource={selectedResource as Resource & { bookmark_count: number }}
+          open={isDetailDialogOpen}
+          onOpenChange={setIsDetailDialogOpen}
+          onDelete={handleDeleteResource}
+        />
       </div>
-      
-      <ResourceUploadDialog 
-        open={isUploadDialogOpen} 
-        onOpenChange={setIsUploadDialogOpen}
-        onSuccess={fetchResources}
-      />
-      
-      <ResourceDetailDialog
-        resource={selectedResource as Resource & { bookmark_count: number }}
-        open={isDetailDialogOpen}
-        onOpenChange={setIsDetailDialogOpen}
-        onDelete={handleDeleteResource}
-      />
     </MainLayout>
   );
 };
 
-const renderResourceList = (
+export default Resources;
+
+function renderResourceList(
   resources: Resource[],
   loading: boolean,
   onResourceClick: (resource: Resource) => void,
   onDeleteResource: (resourceId: string) => void,
   currentUserId?: string
-) => {
+) {
   if (loading) {
     return <div className="text-center py-8">Loading resources...</div>;
   }
-
   if (resources.length === 0) {
     return (
       <div className="text-center py-8">
@@ -235,28 +233,22 @@ const renderResourceList = (
       </div>
     );
   }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {resources.map(resource => {
-        // Allow delete for resource owner or admin/administration users
-        const canDelete = 
-          resource.uploaded_by.id.toString() === currentUserId || 
-          window.localStorage.getItem('user_role') === 'admin' || 
-          window.localStorage.getItem('user_role') === 'administration';
-        
+        console.log('resource.uploaded_by.id:', resource.uploaded_by.id, typeof resource.uploaded_by.id);
+        console.log('currentUserId:', currentUserId, typeof currentUserId);
+        console.log('Equal:', resource.uploaded_by.id === currentUserId);
         return (
           <ResourceCard
             key={resource.id}
             resource={resource}
             onClick={() => onResourceClick(resource)}
-            onDelete={() => onDeleteResource(resource.id)}
-            showDeleteButton={canDelete}
+            onDelete={resource.uploaded_by.id.toString() === currentUserId?.toString() ? () => onDeleteResource(resource.id) : undefined}
+            showDeleteButton={resource.uploaded_by.id.toString() === currentUserId?.toString()}
           />
         );
       })}
     </div>
   );
-};
-
-export default Resources;
+}
