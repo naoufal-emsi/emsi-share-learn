@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, Code, Video, Image as ImageIcon, FileArchive, File, X } from 'lucide-react';
+import { Download, FileText, Code, Video, Image as ImageIcon, FileArchive, File, X, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import ResourceViewer from './ResourceViewer';
+import { Badge } from '@/components/ui/badge';
 import { resourcesAPI } from '@/services/api';
 
 interface RoomResourceCardProps {
@@ -18,16 +19,20 @@ interface RoomResourceCardProps {
     file_type?: string;
     file_size?: number;
   };
+  onClick?: (resource: RoomResourceCardProps['resource']) => void;
   onDownload: (resourceId: string, filename: string) => void;
   onDelete?: (resourceId: string) => void;
   className?: string;
+  showDeleteButton?: boolean;
 }
 
 const RoomResourceCard: React.FC<RoomResourceCardProps> = ({ 
   resource, 
+  onClick,
   onDownload, 
   onDelete,
-  className 
+  className,
+  showDeleteButton = true
 }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -38,17 +43,17 @@ const RoomResourceCard: React.FC<RoomResourceCardProps> = ({
     const fileName = resource.file_name?.toLowerCase() || '';
     
     if (type.includes('pdf') || fileName.endsWith('.pdf')) {
-      return <FileText className="h-4 w-4" />;
+      return <FileText className="h-10 w-10 text-blue-500" />;
     } else if (type.includes('code') || fileName.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go|xml|yaml|yml)$/i)) {
-      return <Code className="h-4 w-4" />;
+      return <Code className="h-10 w-10 text-green-500" />;
     } else if (type.includes('video') || fileName.match(/\.(mp4|webm|mov|avi|mkv)$/i)) {
-      return <Video className="h-4 w-4" />;
+      return <Video className="h-10 w-10 text-red-500" />;
     } else if (type.includes('image') || fileName.match(/\.(jpe?g|png|gif|bmp|webp|svg)$/i)) {
-      return <ImageIcon className="h-4 w-4" />;
+      return <ImageIcon className="h-10 w-10 text-purple-500" />;
     } else if (type.includes('zip') || fileName.match(/\.(zip|rar|tar|gz|7z)$/i)) {
-      return <FileArchive className="h-4 w-4" />;
+      return <FileArchive className="h-10 w-10 text-orange-500" />;
     } else {
-      return <File className="h-4 w-4" />;
+      return <File className="h-10 w-10 text-gray-500" />;
     }
   };
 
@@ -91,67 +96,108 @@ const RoomResourceCard: React.FC<RoomResourceCardProps> = ({
     }
   };
 
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
+  };
+
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick(resource);
+    } else {
+      handlePreviewClick();
+    }
+  };
+
   return (
     <>
-      <Card className={cn("overflow-hidden", className)}>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
+      <Card 
+        className={cn("overflow-hidden hover:shadow-md transition-shadow cursor-pointer", className)}
+        onClick={handleCardClick}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
             {getResourceIcon()}
-            {resource.title}
-          </CardTitle>
-          <CardDescription>{resource.type?.toUpperCase?.() || ''}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {resource.description && (
-            <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
-          )}
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              size="sm"
-              onClick={handlePreviewClick}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Loading...' : 'Preview'}
-            </Button>
-            <Button
-              className="flex-1"
-              size="sm"
-              onClick={() => onDownload(resource.id, resource.file_name || resource.title)}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-            {onDelete && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the resource and remove its data from our servers.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => onDelete(resource.id)}>
-                      Continue
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            <div className="flex-1">
+              <h3 className="font-medium text-lg">{resource.title}</h3>
+              <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                {resource.description || 'No description provided'}
+              </p>
+              
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Badge variant="outline">
+                  {(resource.type?.charAt(0).toUpperCase() + resource.type?.slice(1)) || 'Document'}
+                </Badge>
+              </div>
+              
+              {resource.file_size && (
+                <div className="text-xs text-muted-foreground mt-3">
+                  <span>Size: {formatFileSize(resource.file_size)}</span>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
+        <CardFooter className="p-4 pt-0 flex justify-between">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePreviewClick();
+            }}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Loading...' : 'Preview'}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload(resource.id, resource.file_name || resource.title);
+            }}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            Download
+          </Button>
+          {showDeleteButton && onDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }} 
+                  className="ml-2"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the resource and remove its data from our servers.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(resource.id);
+                  }}>
+                    Continue
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </CardFooter>
       </Card>
 
       <Dialog open={previewOpen} onOpenChange={(open) => {
@@ -210,7 +256,7 @@ const RoomResourceCard: React.FC<RoomResourceCardProps> = ({
                     <>
                       <div className="text-sm font-medium">File Size:</div>
                       <div className="text-sm">
-                        {(resource.file_size / 1024 / 1024).toFixed(2)} MB
+                        {formatFileSize(resource.file_size)}
                       </div>
                     </>
                   )}

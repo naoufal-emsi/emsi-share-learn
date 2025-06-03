@@ -1,22 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { resourcesAPI } from '@/services/api';
+import { Label } from '@/components/ui/label';
+import { Loader2, Upload } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Loader2, Upload, Search, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import MarkdownEditor from '@/components/ui/markdown-editor';
-import CodeEditor from '@/components/ui/code-editor';
+import * as resourcesAPI from '@/services/api';
 
 interface ResourceUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onResourceUploaded?: () => void;
+  onSuccess?: (data: { title: string; description: string; type: string }) => void;
   roomId?: string;
 }
 
@@ -24,11 +22,10 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
   open,
   onOpenChange,
   onResourceUploaded,
-  roomId
+  onSuccess,
+  roomId,
 }) => {
   const { user } = useAuth();
-  const isStudent = user?.role === 'student';
-  
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -49,7 +46,7 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
     // Fetch categories
     const fetchCategories = async () => {
       try {
-        const response = await resourcesAPI.getCategories();
+        const response = await resourcesAPI.resourcesAPI.getCategories();
         setCategories(response.results);
       } catch (error) {
         console.error('Failed to fetch categories:', error);
@@ -103,9 +100,31 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
     setUploadProgress(0);
     
     try {
-      await handleChunkedUpload();
+      const finalType = resourceType;
       
-      toast.success('Resource uploaded successfully');
+      // For files larger than 10MB, use chunked upload
+      if (file.size > 10 * 1024 * 1024) {
+        await handleChunkedUpload(finalType);
+      } else {
+        // Use regular upload for smaller files
+        const formData = new FormData();
+        formData.append('title', title.trim());
+        formData.append('description', description.trim());
+        formData.append('file_data', file);
+        formData.append('type', finalType);
+        
+        if (selectedCategory) {
+          formData.append('category', selectedCategory);
+        }
+        
+        if (roomId) {
+          formData.append('room', roomId);
+        }
+
+        const uploadedResource = await resourcesAPI.resourcesAPI.uploadResource(formData); // Capture the response
+      }
+      
+      toast.success('Resource uploaded successfully!');
       
       // Reset form
       setTitle('');
@@ -118,9 +137,14 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       // Close dialog
       onOpenChange(false);
       
-      // Callback
+      // Trigger success callback
       if (onResourceUploaded) {
         onResourceUploaded();
+      }
+      
+      // Also trigger the other success callback if it exists
+      if (onSuccess) {
+        onSuccess({ title, description, type: finalType });
       }
     } catch (error) {
       console.error('Failed to upload resource:', error);
@@ -251,250 +275,159 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
         if (!response.ok) {
           const errorText = await response.text();
           console.error('Upload error response:', errorText);
-          throw new Error(`Failed to upload resource: ${response.status}`);
+          throw new Error('Upload failed: ' + (errorText || response.statusText));
         }
         
-        return response.json();
+        return await response.json();
       };
       
-      // Make the upload request with retry capability
+      // Execute the upload
       const result = await makeUploadRequest();
-      console.log('Resource upload successful, server response:', result);
-      
-      cleanup();
       setUploadProgress(100);
-      
-      // Log success for debugging
-      console.log('Resource status: approved');
-      
+      cleanup();
       return result;
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error('Chunked upload failed:', error);
       throw error;
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Upload Resource</DialogTitle>
-          <DialogDescription>
-            Upload a resource to share with others.
-          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter resource title"
-              required
+            <Input 
+              id="title" 
+              value={title} 
+              onChange={(e) => setTitle(e.target.value)} 
+              placeholder="Resource title" 
+              required 
             />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Tabs value={editorMode} onValueChange={(value) => setEditorMode(value as 'markdown' | 'code' | 'plain')}>
-              <TabsList className="mb-2">
-                <TabsTrigger value="plain">Plain Text</TabsTrigger>
-                <TabsTrigger value="markdown">Markdown</TabsTrigger>
-                <TabsTrigger value="code">Code</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="plain" className="mt-0">
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Enter resource description"
-                  rows={3}
-                />
-              </TabsContent>
-              
-              <TabsContent value="markdown" className="mt-0">
-                <MarkdownEditor
-                  value={description}
-                  onChange={setDescription}
-                  placeholder="Enter markdown description..."
-                  className="min-h-[200px]"
-                />
-              </TabsContent>
-              
-              <TabsContent value="code" className="mt-0">
-                <CodeEditor
-                  value={description}
-                  onChange={setDescription}
-                  language="javascript"
-                  placeholder="Enter code..."
-                  className="min-h-[200px]"
-                />
-              </TabsContent>
-            </Tabs>
+            <Textarea 
+              id="description" 
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+              placeholder="Describe this resource" 
+              rows={3} 
+            />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <div className="relative">
-              <div className="flex items-center border rounded-md">
-                <Search className="h-4 w-4 ml-3 text-muted-foreground" />
-                <Input
-                  id="category-search"
-                  value={categorySearch}
-                  onChange={(e) => {
-                    setCategorySearch(e.target.value);
-                    setShowCategoryDropdown(true);
-                    if (!e.target.value) {
-                      setSelectedCategory('');
-                    }
-                  }}
-                  onFocus={() => setShowCategoryDropdown(true)}
-                  placeholder="Search for a category"
-                  className="border-0 focus-visible:ring-0"
-                />
-                {categorySearch && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 mr-1"
-                    onClick={() => {
-                      setCategorySearch('');
-                      setSelectedCategory('');
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <Input 
+                id="category" 
+                value={categorySearch} 
+                onChange={(e) => setCategorySearch(e.target.value)} 
+                placeholder="Search for a category" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowCategoryDropdown(true);
+                }}
+              />
               
-              {showCategoryDropdown && (
-                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-60 overflow-auto">
-                  {filteredCategories.length > 0 ? (
-                    filteredCategories.map(category => (
-                      <div
-                        key={category.id}
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                        onClick={() => handleCategorySelect(category.id.toString(), category.name)}
-                      >
-                        {category.name}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-muted-foreground">
-                      {categorySearch ? 'No categories found' : 'Start typing to search categories'}
+              {showCategoryDropdown && filteredCategories.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {filteredCategories.map((category) => (
+                    <div 
+                      key={category.id} 
+                      className="px-4 py-2 hover:bg-muted cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCategorySelect(category.id.toString(), category.name);
+                      }}
+                    >
+                      {category.name}
                     </div>
-                  )}
+                  ))}
                 </div>
               )}
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="type">Resource Type</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Button 
-                type="button"
-                variant={resourceType === 'document' ? "default" : "outline"} 
-                onClick={() => setResourceType('document')}
-                className="justify-start"
-              >
-                Documents
-              </Button>
-              <Button 
-                type="button"
-                variant={resourceType === 'video' ? "default" : "outline"} 
-                onClick={() => setResourceType('video')}
-                className="justify-start"
-              >
-                Videos
-              </Button>
-              <Button 
-                type="button"
-                variant={resourceType === 'code' ? "default" : "outline"} 
-                onClick={() => {
-                  setResourceType('code');
-                  if (editorMode === 'plain') {
-                    setEditorMode('code');
-                  }
-                }}
-                className="justify-start"
-              >
-                Code
-              </Button>
-              <Button 
-                type="button"
-                variant={resourceType === 'document' && file?.name?.toLowerCase().endsWith('.zip') ? "default" : "outline"} 
-                onClick={() => setResourceType('document')}
-                className="justify-start"
-              >
-                Archives
-              </Button>
-              <Button 
-                type="button"
-                variant={resourceType === 'other' ? "default" : "outline"} 
-                onClick={() => setResourceType('other')}
-                className="justify-start col-span-2"
-              >
-                Other
-              </Button>
             </div>
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="file">File</Label>
-            {!file ? (
-              <div className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:border-primary transition-colors">
-                <input
-                  type="file"
-                  id="file"
-                  className="hidden"
-                  onChange={handleFileChange}
-                  required
-                />
-                <label htmlFor="file" className="cursor-pointer flex flex-col items-center">
-                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Click to select a file</p>
-                </label>
-              </div>
-            ) : (
-              <div className="border rounded-md p-3 flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFile(null)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+              <Input 
+                id="file" 
+                type="file" 
+                onChange={handleFileChange} 
+                className="hidden" 
+              />
+              <Label htmlFor="file" className="cursor-pointer flex flex-col items-center gap-2">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  {file ? file.name : 'Click to upload or drag and drop'}
+                </span>
+                {file && (
+                  <span className="text-xs text-muted-foreground">
+                    {(file.size / (1024 * 1024)).toFixed(2)} MB
+                  </span>
+                )}
+              </Label>
+            </div>
           </div>
           
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="space-y-2">
+            <Label htmlFor="resourceType">Resource Type</Label>
+            <select 
+              id="resourceType" 
+              value={resourceType} 
+              onChange={(e) => setResourceType(e.target.value)}
+              className="w-full p-2 border rounded-md bg-background"
+            >
+              <option value="document">Document</option>
+              <option value="video">Video</option>
+              <option value="code">Code</option>
+              <option value="image">Image</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          {isUploading && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Uploading...</span>
+                <span className="text-sm">{uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isUploading}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isUploading} className="min-w-[100px]">
+            <Button 
+              type="submit" 
+              disabled={isUploading || !file || !title}
+              className="gap-2"
+            >
               {isUploading ? (
-                <div className="flex items-center">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
-                </div>
-              ) : (
                 <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading...
                 </>
+              ) : (
+                'Upload Resource'
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

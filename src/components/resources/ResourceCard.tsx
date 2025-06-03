@@ -5,6 +5,7 @@ import { Download, FileText, Code, Video, Image as ImageIcon, FileArchive, File,
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { resourcesAPI } from '@/services/api';
+import { toast } from 'sonner';
 
 interface ResourceCardProps {
   resource: {
@@ -14,6 +15,7 @@ interface ResourceCardProps {
     type?: string;
     file_name?: string;
     file_size?: number;
+    download_count?: number;
     uploaded_by?: {
       id: string;
       username: string;
@@ -64,8 +66,10 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       console.log('Download completed for:', resource.title);
+      toast.success('Download started');
     } catch (error) {
       console.error('Failed to download resource:', error);
+      toast.error('Failed to download resource');
     }
   };
 
@@ -118,7 +122,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({
             onClick={handleDownload}
           >
             <Download className="h-4 w-4 mr-2" />
-            Download
+            Download {resource.download_count ? `(${resource.download_count})` : ''}
           </Button>
           {showDeleteButton && onDelete && (
             <AlertDialog>

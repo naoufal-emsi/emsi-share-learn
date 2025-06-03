@@ -208,7 +208,7 @@ const Resources: React.FC = () => {
       />
       
       <ResourceDetailDialog
-        resource={selectedResource}
+        resource={selectedResource as Resource & { bookmark_count: number }}
         open={isDetailDialogOpen}
         onOpenChange={setIsDetailDialogOpen}
         onDelete={handleDeleteResource}
