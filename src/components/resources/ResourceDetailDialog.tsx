@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { resourcesAPI } from '@/services/api';
 import { toast } from 'sonner';
-import { Download, FileText, Video, Code, File, Calendar, User, Folder, ChevronRight, ChevronDown, Maximize2, Minimize2, Bookmark } from 'lucide-react';
+import { Download, FileText, Video, Code, File, Calendar, User, Folder, ChevronRight, ChevronDown, Maximize2, Minimize2, Bookmark, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ResourceViewer from './ResourceViewer';
 import JSZip from 'jszip';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Resource {
   id: string;
@@ -45,13 +46,16 @@ interface ResourceDetailDialogProps {
   resource: Resource | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDelete?: (resourceId: string) => void;
 }
 
 const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({ 
   resource, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  onDelete
 }) => {
+  const { user } = useAuth();
   const [isDownloading, setIsDownloading] = useState(false);
   const [isBookmarking, setIsBookmarking] = useState(false);
   const [bookmarkCount, setBookmarkCount] = useState(resource?.bookmark_count || 0);
@@ -104,9 +108,6 @@ const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({
     // If it's a ZIP file, process it
     if (resource && resource.file_name.toLowerCase().endsWith('.zip')) {
       handleZipFile();
-    } else if (resource) {
-      // For other file types, load preview
-      loadResourcePreview();
     }
   }, [resource]);
 
@@ -137,6 +138,13 @@ const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isResizing]);
+
+  useEffect(() => {
+    // Load preview when resource changes
+    if (resource && !resource.file_name.toLowerCase().endsWith('.zip')) {
+      loadResourcePreview();
+    }
+  }, [resource]);
 
   const loadResourcePreview = async () => {
     if (!resource) return;
@@ -740,6 +748,22 @@ const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({
               <Download className="h-4 w-4" />
               {isDownloading ? 'Downloading...' : 'Download'}
             </Button>
+
+            {onDelete && resource && (user?.id === resource.uploaded_by.id || user?.role === 'admin' || user?.role === 'administration') && (
+              <Button 
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete this resource? This action cannot be undone.')) {
+                    onDelete(resource.id);
+                    onOpenChange(false);
+                  }
+                }}
+                variant="destructive"
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

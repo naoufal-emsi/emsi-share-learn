@@ -282,6 +282,7 @@ export const resourcesAPI = {
     type?: string;
     category?: string;
     search?: string;
+    status?: string;
   }) => {
     let endpoint = '/resources/';
     const queryParams = [];
@@ -291,6 +292,7 @@ export const resourcesAPI = {
       if (params.type) queryParams.push(`type=${params.type}`);
       if (params.category) queryParams.push(`category=${params.category}`);
       if (params.search) queryParams.push(`search=${encodeURIComponent(params.search)}`);
+      if (params.status) queryParams.push(`status=${params.status}`);
     }
     
     if (queryParams.length > 0) {
@@ -304,6 +306,45 @@ export const resourcesAPI = {
       results: Array.isArray(response) ? response : response?.results || [],
       count: response?.count || 0
     };
+  },
+  
+  getPendingResources: async () => {
+    try {
+      console.log('Fetching pending resources from API');
+      // Use status=pending filter to get only pending resources
+      const response = await apiRequest('/resources/?status=pending');
+      console.log('Raw pending resources response:', response);
+      return {
+        results: Array.isArray(response) ? response : response?.results || [],
+        count: response?.count || 0
+      };
+    } catch (error) {
+      console.error('Error fetching pending resources:', error);
+      throw error;
+    }
+  },
+  
+  getMyPendingResources: async () => {
+    try {
+      console.log('Fetching my pending resources from API');
+      // Use both my=true and status filters to get only the user's resources with any status
+      const response = await apiRequest('/resources/?my=true');
+      console.log('Raw my pending resources response:', response);
+      
+      // Filter results to include only resources with status pending, approved, or rejected
+      let results = Array.isArray(response) ? response : response?.results || [];
+      
+      // Log the results for debugging
+      console.log('My resources before filtering:', results);
+      
+      return {
+        results: results,
+        count: results.length
+      };
+    } catch (error) {
+      console.error('Error fetching my pending resources:', error);
+      throw error;
+    }
   },
   
   // Chunked upload functions for large resources
@@ -375,22 +416,46 @@ export const resourcesAPI = {
       formData.set('type', 'document');
     }
     
-    const response = await fetch(`${API_BASE_URL}/resources/`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type header - let browser set it with boundary for multipart
-      },
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Upload error response:', errorData);
-      throw new Error(`Failed to upload resource: ${response.status} ${response.statusText}`);
+    // CRITICAL: Ensure status is set correctly
+    const status = formData.get('status');
+    if (!status) {
+      // Get user role from localStorage
+      const userRole = localStorage.getItem('user_role');
+      // If student, set status to pending
+      if (userRole === 'student') {
+        formData.set('status', 'pending');
+        console.log('Setting missing status to pending for student');
+      } else {
+        formData.set('status', 'approved');
+        console.log('Setting missing status to approved for non-student');
+      }
     }
     
-    return response.json();
+    console.log('Final resource upload status:', formData.get('status'));
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/resources/`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Don't set Content-Type header - let browser set it with boundary for multipart
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Upload error response:', errorData);
+        throw new Error(`Failed to upload resource: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Resource upload successful, server response:', result);
+      return result;
+    } catch (error) {
+      console.error('Resource upload failed:', error);
+      throw error;
+    }
   },
 
   downloadResource: async (resourceId: string) => {
@@ -421,6 +486,19 @@ export const resourcesAPI = {
     }
     return apiRequest(url, {
       method: 'DELETE',
+    });
+  },
+  
+  approveResource: async (resourceId: string) => {
+    return apiRequest(`/resources/${resourceId}/approve/`, {
+      method: 'POST',
+    });
+  },
+  
+  rejectResource: async (resourceId: string, reason: string) => {
+    return apiRequest(`/resources/${resourceId}/reject/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     });
   },
 };
@@ -1105,5 +1183,71 @@ export const uploadAPI = {
     return apiRequest(`/upload-sessions/${sessionId}/finalize/`, {
       method: 'POST',
     });
+  }
+};
+
+// Platform settings API
+export const platformAPI = {
+  getSettings: async () => {
+    try {
+      const response = await apiRequest('/platform/settings/');
+      return response;
+    } catch (error) {
+      console.error('Error fetching platform settings:', error);
+      throw error;
+    }
+  },
+  
+  updateSettings: async (settings: {
+    platformName?: string;
+    pageSizes?: {
+      resources?: number;
+      forumPosts?: number;
+      events?: number;
+      users?: number;
+    };
+    generalSettings?: {
+      enableRegistration?: boolean;
+      maintenanceMode?: boolean;
+      publicProfiles?: boolean;
+    };
+    securitySettings?: {
+      passwordPolicy?: boolean;
+      sessionTimeout?: boolean;
+    }
+  }) => {
+    try {
+      const response = await apiRequest('/platform/settings/', {
+        method: 'POST',
+        body: JSON.stringify(settings),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error updating platform settings:', error);
+      throw error;
+    }
+  },
+  
+  uploadLogo: async (logoData: string) => {
+    try {
+      const response = await apiRequest('/platform/logo/', {
+        method: 'POST',
+        body: JSON.stringify({ logo: logoData }),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error uploading platform logo:', error);
+      throw error;
+    }
+  },
+  
+  getDatabaseStats: async () => {
+    try {
+      const response = await apiRequest('/platform/stats/');
+      return response;
+    } catch (error) {
+      console.error('Error fetching database stats:', error);
+      throw error;
+    }
   }
 };

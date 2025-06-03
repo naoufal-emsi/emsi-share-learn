@@ -57,9 +57,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleSidebar }) => {
     ...(user?.role === 'student' ? [
       { name: 'My Rooms', href: '/student-rooms', icon: DoorOpen },
     ] : []),
-    ...(user?.role === 'teacher' || user?.role === 'admin' || user?.role === 'administration' ? [
-      { name: 'Analytics', href: '/analytics', icon: BarChart },
-    ] : []),
     { name: 'Forum', href: '/forum', icon: MessageSquare },
     { name: 'Events', href: '/events', icon: Calendar },
     ...(user?.role === 'admin' || user?.role === 'administration' ? [

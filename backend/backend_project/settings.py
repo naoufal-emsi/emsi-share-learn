@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'forums',
     'notifications',
     'events',
+    'platform_settings',
 ]
 
 MIDDLEWARE = [

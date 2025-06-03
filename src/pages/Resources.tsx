@@ -89,6 +89,7 @@ const Resources: React.FC = () => {
   };
 
   const handleResourceClick = (resource: Resource) => {
+    console.log('Resource clicked:', resource);
     setSelectedResource(resource);
     setIsDetailDialogOpen(true);
   };
@@ -122,13 +123,23 @@ const Resources: React.FC = () => {
             </p>
           </div>
           
-          <Button 
-            className="bg-primary hover:bg-primary-dark"
-            onClick={() => setIsUploadDialogOpen(true)}
-          >
-            <PlusCircle className="h-4 w-4 mr-2" />
-            Add Resource
-          </Button>
+          <div className="flex gap-2">
+            {user?.role === 'student' && (
+              <Button 
+                variant="outline"
+                onClick={() => window.location.href = '/resources/my-submissions'}
+              >
+                My Submissions
+              </Button>
+            )}
+            <Button 
+              className="bg-primary hover:bg-primary-dark"
+              onClick={() => setIsUploadDialogOpen(true)}
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Resource
+            </Button>
+          </div>
         </div>
         
         <ResourceSearchFilters onSearch={handleSearch} />
@@ -200,6 +211,7 @@ const Resources: React.FC = () => {
         resource={selectedResource}
         open={isDetailDialogOpen}
         onOpenChange={setIsDetailDialogOpen}
+        onDelete={handleDeleteResource}
       />
     </MainLayout>
   );
@@ -227,13 +239,19 @@ const renderResourceList = (
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {resources.map(resource => {
+        // Allow delete for resource owner or admin/administration users
+        const canDelete = 
+          resource.uploaded_by.id.toString() === currentUserId || 
+          window.localStorage.getItem('user_role') === 'admin' || 
+          window.localStorage.getItem('user_role') === 'administration';
+        
         return (
           <ResourceCard
             key={resource.id}
             resource={resource}
             onClick={() => onResourceClick(resource)}
             onDelete={() => onDeleteResource(resource.id)}
-            showDeleteButton={resource.uploaded_by.id.toString() === currentUserId}
+            showDeleteButton={canDelete}
           />
         );
       })}

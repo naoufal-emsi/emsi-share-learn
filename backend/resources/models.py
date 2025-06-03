@@ -37,6 +37,12 @@ class Resource(models.Model):
         ('other', 'Other'),
     )
     
+    STATUS_CHOICES = (
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+    
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     file_data = models.BinaryField(null=True, blank=True)  # Stores binary data directly
@@ -49,6 +55,11 @@ class Resource(models.Model):
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='uploaded_resources')
     file_size = models.BigIntegerField(null=True, blank=True)
     bookmark_count = models.IntegerField(default=0)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='approved')
+    rejection_reason = models.TextField(blank=True, null=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, 
+                                   related_name='reviewed_resources', null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

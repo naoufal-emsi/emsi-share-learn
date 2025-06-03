@@ -1,174 +1,130 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { resourcesAPI } from '@/services/api';
 import { toast } from 'sonner';
-import { Upload, X, Search, Loader2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import CodeEditor from '@/components/editor/CodeEditor';
-import MarkdownEditor from '@/components/editor/MarkdownEditor';
+import { Loader2, Upload, Search, X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import MarkdownEditor from '@/components/ui/markdown-editor';
+import CodeEditor from '@/components/ui/code-editor';
 
 interface ResourceUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onResourceUploaded?: () => void;
   roomId?: string;
-  onSuccess?: () => void;
 }
 
-const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({ 
-  open, 
+const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
+  open,
   onOpenChange,
-  roomId,
-  onSuccess
+  onResourceUploaded,
+  roomId
 }) => {
+  const { user } = useAuth();
+  const isStudent = user?.role === 'student';
+  
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [categorySearch, setCategorySearch] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [resourceType, setResourceType] = useState<string>('');
-  const [categorySearch, setCategorySearch] = useState('');
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [editorMode, setEditorMode] = useState<'markdown' | 'code' | 'plain'>('plain');
-
-  // Fetch categories
+  const [resourceType, setResourceType] = useState('document');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [categories, setCategories] = useState<{id: number, name: string}[]>([]);
+  
   useEffect(() => {
+    // Close dropdown when clicking outside
+    const handleClickOutside = () => setShowCategoryDropdown(false);
+    document.addEventListener('click', handleClickOutside);
+    
+    // Fetch categories
     const fetchCategories = async () => {
       try {
         const response = await resourcesAPI.getCategories();
-        console.log('Categories response:', response);
-        setCategories(response.results || []);
+        setCategories(response.results);
       } catch (error) {
-        console.error('Failed to fetch resource categories:', error);
+        console.error('Failed to fetch categories:', error);
       }
     };
     
-    if (open) {
-      fetchCategories();
-    }
-  }, [open]);
-
-  // Filter categories based on search
+    fetchCategories();
+    
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+  
   const filteredCategories = categories.filter(category => 
     category.name.toLowerCase().includes(categorySearch.toLowerCase())
   );
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      
-      // Check file size
-      const fileSizeMB = selectedFile.size / (1024 * 1024);
-      if (fileSizeMB > 100) {
-        toast.error('File size exceeds 100MB limit');
-        return;
-      }
-      
-      setFile(selectedFile);
-      
-      // Only auto-detect resource type if user hasn't explicitly selected one
-      if (!resourceType) {
-        // Auto-detect resource type based on file type
-        const fileType = selectedFile.type.toLowerCase();
-        const fileName = selectedFile.name.toLowerCase();
-        
-        if (fileType.includes('pdf') || fileType.includes('word') || fileType.includes('document') || 
-            fileType.includes('powerpoint') || fileType.includes('excel') || fileType.includes('spreadsheet')) {
-          setResourceType('document');
-        } else if (fileType.includes('video')) {
-          setResourceType('video');
-        } else if (fileType.includes('text/plain') || fileType.includes('application/json') || 
-                  fileType.includes('text/html') || fileType.includes('text/css') || 
-                  fileType.includes('application/javascript') ||
-                  fileName.match(/\.(js|ts|py|java|html|css|php|c|cpp|h|rb|go|json|xml|yaml|yml|md|sql)$/i)) {
-          setResourceType('code');
-          // Set editor mode to code for code files
-          setEditorMode('code');
-        } else if (fileType.includes('zip') || fileType.includes('archive') || 
-                  fileName.match(/\.(zip|rar|7z|tar|gz)$/i)) {
-          setResourceType('document'); // Use 'document' type for archives as 'archive' is not valid in backend
-        } else {
-          setResourceType('other');
-        }
-      }
-      
-      // Show file size warning for large files
-      if (fileSizeMB > 10) {
-        toast.info(`Large file detected (${fileSizeMB.toFixed(1)}MB). Upload may take some time.`);
-      }
-    }
-  };
-
-  const handleCategorySelect = (categoryId: string, categoryName: string) => {
-    setSelectedCategory(categoryId);
-    setCategorySearch(categoryName);
+  
+  const handleCategorySelect = (id: string, name: string) => {
+    setSelectedCategory(id);
+    setCategorySearch(name);
     setShowCategoryDropdown(false);
   };
-
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      
+      // Auto-detect resource type based on file extension
+      const fileName = selectedFile.name.toLowerCase();
+      if (fileName.match(/\.(pdf|doc|docx|txt|rtf)$/)) {
+        setResourceType('document');
+      } else if (fileName.match(/\.(mp4|webm|mov|avi)$/)) {
+        setResourceType('video');
+      } else if (fileName.match(/\.(js|ts|py|java|c|cpp|html|css|json)$/)) {
+        setResourceType('code');
+        setEditorMode('code');
+      } else if (fileName.match(/\.(zip|rar|tar|gz)$/)) {
+        setResourceType('document');
+      }
+    }
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !file) {
-      toast.error('Please provide a title and select a file');
+    
+    if (!title || !file) {
+      toast.error('Please provide a title and file');
       return;
     }
-
+    
     setIsUploading(true);
     setUploadProgress(0);
     
     try {
-      // Check if file is a ZIP file and ensure resourceType is set appropriately
-      // Note: Backend doesn't accept 'archive' as a valid type, so we use 'document' for ZIP files
-      const fileType = file.name.toLowerCase();
-      const finalType = fileType.endsWith('.zip') ? 'document' : (resourceType || 'other');
+      await handleChunkedUpload();
       
-      // For files larger than 10MB, use chunked upload
-      if (file.size > 10 * 1024 * 1024) {
-        await handleChunkedUpload(finalType);
-      } else {
-        // Use regular upload for smaller files
-        const formData = new FormData();
-        formData.append('title', title.trim());
-        formData.append('description', description.trim());
-        formData.append('file_data', file);
-        formData.append('type', finalType);
-        
-        if (selectedCategory) {
-          formData.append('category', selectedCategory);
-        }
-        
-        if (roomId) {
-          formData.append('room', roomId);
-        }
-
-        await resourcesAPI.uploadResource(formData);
-      }
-      
-      toast.success('Resource uploaded successfully!');
+      toast.success('Resource uploaded successfully');
       
       // Reset form
       setTitle('');
       setDescription('');
-      setFile(null);
       setSelectedCategory('');
       setCategorySearch('');
-      setResourceType('');
+      setFile(null);
       setUploadProgress(0);
-      setEditorMode('plain');
       
       // Close dialog
       onOpenChange(false);
       
-      // Trigger success callback
-      if (onSuccess) {
-        onSuccess();
+      // Callback
+      if (onResourceUploaded) {
+        onResourceUploaded();
       }
     } catch (error) {
       console.error('Failed to upload resource:', error);
-      toast.error('Failed to upload resource. Please try again.');
+      toast.error('Failed to upload resource');
     } finally {
       setIsUploading(false);
     }
@@ -185,6 +141,21 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       formData.append('description', description.trim());
       formData.append('file_data', file);
       formData.append('type', fileType || 'other');
+      
+      // Always set status to approved for all users
+      formData.append('status', 'approved');
+      console.log('Setting resource status to approved');
+      
+      // Store user role in localStorage for reference
+      if (user?.role) {
+        localStorage.setItem('user_role', user.role);
+      }
+      
+      // Add user ID to ensure proper ownership
+      if (user?.id) {
+        formData.append('uploaded_by', user.id.toString());
+        console.log('Setting uploaded_by to user ID:', user.id);
+      }
       
       if (selectedCategory) {
         formData.append('category', selectedCategory);
@@ -210,11 +181,95 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       };
       
       const cleanup = simulateProgress();
-      await resourcesAPI.uploadResource(formData);
+      
+      // Get token from cookies instead of localStorage
+      const getCookie = (name: string) => {
+        return document.cookie.split('; ').reduce((r, v) => {
+          const parts = v.split('=');
+          return parts[0] === name ? decodeURIComponent(parts[1]) : r;
+        }, '');
+      };
+      
+      // Make the upload request with token refresh capability
+      const makeUploadRequest = async (retryOnUnauthorized = true) => {
+        // Get token from cookie (primary) or localStorage (fallback)
+        let token = getCookie('emsi_access') || localStorage.getItem('emsi_access');
+        
+        if (!token) {
+          console.error('No access token found in cookies or localStorage');
+          throw new Error('Authentication token not found. Please log in again.');
+        }
+        
+        const response = await fetch('http://127.0.0.1:8000/api/resources/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        // If unauthorized and we should retry
+        if (response.status === 401 && retryOnUnauthorized) {
+          console.log('Token expired, attempting to refresh...');
+          
+          try {
+            // Get refresh token
+            const refreshToken = getCookie('emsi_refresh') || localStorage.getItem('emsi_refresh');
+            
+            if (!refreshToken) {
+              throw new Error('No refresh token available');
+            }
+            
+            // Try to refresh the token
+            const refreshResponse = await fetch('http://127.0.0.1:8000/api/token/refresh/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ refresh: refreshToken }),
+            });
+            
+            if (!refreshResponse.ok) {
+              throw new Error('Failed to refresh token');
+            }
+            
+            const data = await refreshResponse.json();
+            
+            // Save the new access token to both cookie and localStorage
+            document.cookie = `emsi_access=${data.access}; path=/; max-age=${14 * 24 * 60 * 60}`;
+            localStorage.setItem('emsi_access', data.access);
+            
+            // Retry the request with the new token
+            console.log('Token refreshed, retrying upload...');
+            return makeUploadRequest(false); // Don't retry again to avoid infinite loop
+          } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError);
+            throw new Error('Authentication failed. Please log in again.');
+          }
+        }
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload error response:', errorText);
+          throw new Error(`Failed to upload resource: ${response.status}`);
+        }
+        
+        return response.json();
+      };
+      
+      // Make the upload request with retry capability
+      const result = await makeUploadRequest();
+      console.log('Resource upload successful, server response:', result);
+      
       cleanup();
       setUploadProgress(100);
+      
+      // Log success for debugging
+      console.log('Resource status: approved');
+      
+      return result;
     } catch (error) {
-      console.error('Chunked upload failed:', error);
+      console.error('Upload failed:', error);
       throw error;
     }
   };
@@ -224,6 +279,9 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Upload Resource</DialogTitle>
+          <DialogDescription>
+            Upload a resource to share with others.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -247,12 +305,12 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
               </TabsList>
               
               <TabsContent value="plain" className="mt-0">
-                <Input
+                <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Enter resource description"
-                  className="min-h-[100px]"
+                  rows={3}
                 />
               </TabsContent>
               
@@ -429,7 +487,12 @@ const ResourceUploadDialog: React.FC<ResourceUploadDialogProps> = ({
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   {uploadProgress > 0 ? `${uploadProgress}%` : 'Uploading...'}
                 </div>
-              ) : 'Upload'}
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

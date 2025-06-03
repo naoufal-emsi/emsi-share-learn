@@ -4,8 +4,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import React, { Suspense, lazy } from "react";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { PlatformProvider } from "./contexts/PlatformContext";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -18,7 +20,6 @@ import Forum from "./pages/Forum";
 import Events from "./pages/Events";
 import EventDetails from "./pages/EventDetails";
 import EditEvent from "./pages/EditEvent";
-import Analytics from "./pages/Analytics";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -34,11 +35,12 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="system" storageKey="emsi-share-theme">
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
+        <PlatformProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/landing" element={<Landing />} />
               <Route path="/login" element={<Login />} />
@@ -51,7 +53,6 @@ const App = () => (
               <Route path="/events" element={<Events />} />
               <Route path="/events/:eventId" element={<EventDetails />} />
               <Route path="/events/:eventId/edit" element={<EditEvent />} />
-              <Route path="/analytics" element={<Analytics />} />
               <Route path="/users" element={<Users />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/rooms" element={<Rooms />} />
@@ -63,7 +64,8 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        </TooltipProvider>
+          </TooltipProvider>
+        </PlatformProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

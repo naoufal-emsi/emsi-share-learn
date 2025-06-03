@@ -48,8 +48,8 @@ const NotificationDropdown: React.FC = () => {
     if (user) {
       fetchNotifications();
       
-      // Set up polling for notifications every 30 seconds
-      const intervalId = setInterval(fetchNotifications, 30000);
+      // Set up polling for notifications every 5 seconds for more frequent updates
+      const intervalId = setInterval(fetchNotifications, 5000);
       
       return () => clearInterval(intervalId);
     }

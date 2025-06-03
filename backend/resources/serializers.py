@@ -30,13 +30,15 @@ class ResourceSerializer(serializers.ModelSerializer):
     file_data = serializers.FileField(write_only=True)
     category_name = serializers.SerializerMethodField()
     uploaded_by = UserSerializer(read_only=True)
+    reviewed_by = UserSerializer(read_only=True)
 
     class Meta:
         model = Resource
         fields = ['id', 'title', 'description', 'file_data', 'file_name', 'file_type',
                  'type', 'category', 'category_name', 'room', 'uploaded_by', 'uploaded_at', 
-                 'file_size', 'bookmark_count']
-        read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'file_size', 'bookmark_count', 'category_name']
+                 'file_size', 'bookmark_count', 'status', 'rejection_reason', 'reviewed_by', 'reviewed_at']
+        read_only_fields = ['id', 'uploaded_by', 'uploaded_at', 'file_size', 'bookmark_count', 
+                           'category_name', 'status', 'rejection_reason', 'reviewed_by', 'reviewed_at']
         extra_kwargs = {
             'room': {'required': False, 'allow_null': True},
             'category': {'required': False, 'allow_null': True}
@@ -95,5 +97,13 @@ class ResourceSerializer(serializers.ModelSerializer):
             except Exception as e:
                 raise serializers.ValidationError(f"Invalid base64 data: {str(e)}")
 
-        validated_data['uploaded_by'] = self.context['request'].user
+        user = self.context['request'].user
+        validated_data['uploaded_by'] = user
+        
+        # Set status based on user role
+        if user.role == 'student':
+            validated_data['status'] = 'pending'
+        else:
+            validated_data['status'] = 'approved'
+            
         return super().create(validated_data)

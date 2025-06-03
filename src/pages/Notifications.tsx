@@ -39,6 +39,11 @@ const Notifications: React.FC = () => {
 
   useEffect(() => {
     fetchNotifications();
+    
+    // Set up polling for notifications every 5 seconds
+    const intervalId = setInterval(fetchNotifications, 5000);
+    
+    return () => clearInterval(intervalId);
   }, []);
 
   const fetchNotifications = async () => {

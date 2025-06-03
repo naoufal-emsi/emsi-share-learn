@@ -12,6 +12,7 @@ import { roomsAPI, resourcesAPI, quizzesAPI } from '@/services/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Copy, FileText, BookOpen, Download, Trash2 } from 'lucide-react';
+import RoomResourceCard from '@/components/resources/RoomResourceCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import Quiz from './Quiz'; // Import the Quiz component
 import { Toggle } from '@/components/ui/toggle';
@@ -330,54 +331,12 @@ const RoomDetails: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {resources.map((resource) => (
-                  <Card key={resource.id} className="overflow-hidden">
-                    <CardHeader>
-                      <CardTitle className="text-base">{resource.title}</CardTitle>
-                      <CardDescription>{resource.type?.toUpperCase?.() || ''}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {resource.description && (
-                        <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
-                      )}
-
-                      <div className="flex gap-2">
-                        <Button
-                          className="flex-1" // Use flex-1 to make it take available space
-                          size="sm"
-                          onClick={() => downloadResource(resource.id, resource.file_name || resource.title)}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Download
-                        </Button>
-                        {isTeacher && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete the resource and remove its data from our servers.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteResource(resource.id)}>
-                                  Continue
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <RoomResourceCard
+                    key={resource.id}
+                    resource={resource}
+                    onDownload={downloadResource}
+                    onDelete={isTeacher ? handleDeleteResource : undefined}
+                  />
                 ))}
               </div>
             )}

@@ -47,13 +47,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfilePicture = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/auth/profile/picture/', {
+      // Check if endpoint exists before making the request
+      const res = await fetch('http://127.0.0.1:8000/api/auth/me/', {
         headers: { Authorization: `Bearer ${getCookie('emsi_access')}` },
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.image) {
-          setUser(prev => prev ? { ...prev, profilePicture: data.image } : null);
+        if (data.profile_picture_data) {
+          setUser(prev => prev ? { ...prev, profilePicture: data.profile_picture_data } : null);
         }
       }
     } catch (error) {

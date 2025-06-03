@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlatform } from '@/contexts/PlatformContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { 
@@ -19,13 +20,21 @@ const DEFAULT_AVATAR = "/placeholder.svg";
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
+  const { platformName, platformLogo } = usePlatform();
   const navigate = useNavigate();
 
   return (
     <header className="bg-gradient-to-r from-primary to-primary-light dark:from-primary-dark dark:to-primary shadow-sm border-b border-gray-200 dark:border-gray-700 py-3 px-4 md:px-6 flex items-center justify-between fixed top-0 left-0 right-0 z-20">
       <div className="flex items-center">
         <Link to="/" className="flex items-center">
-          <h1 className="text-2xl font-bold text-white">EMSI Share</h1>
+          {platformLogo ? (
+            <img 
+              src={platformLogo} 
+              alt={platformName} 
+              className="h-8 w-8 mr-2 rounded-sm"
+            />
+          ) : null}
+          <h1 className="text-2xl font-bold text-white">{platformName}</h1>
         </Link>
       </div>
       <div className="flex items-center space-x-4">
@@ -67,6 +76,14 @@ const Header: React.FC = () => {
                 <span>Notification History</span>
               </Link>
             </DropdownMenuItem>
+            {(user?.role === 'admin' || user?.role === 'administration') && (
+              <DropdownMenuItem asChild>
+                <Link to="/settings" className="flex items-center w-full cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Platform Settings</span>
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
               <LogOut className="mr-2 h-4 w-4" />

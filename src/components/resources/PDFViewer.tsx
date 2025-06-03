@@ -15,7 +15,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl }) => {
 
   return (
     <div className="w-full h-[500px]">
-      <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+      <Worker workerUrl="/pdf.worker.min.js">
         <Viewer
           fileUrl={fileUrl}
           plugins={[defaultLayoutPluginInstance]}
