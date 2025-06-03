@@ -177,7 +177,7 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
                 </div>
               </div>
               
-              <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+              <p className="text-sm text-muted-foreground mb-4 line-clamp-2 break-words overflow-hidden">
                 {searchText ? (
                   <HighlightedText text={topic.content} highlight={searchText} maxLength={200} />
                 ) : (

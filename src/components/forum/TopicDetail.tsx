@@ -547,7 +547,7 @@ const TopicDetail: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 prose max-w-none prose-sm">
+                <div className="mt-3 prose max-w-none prose-sm break-words overflow-wrap-anywhere">
                   {renderContent(topic.content)}
                 </div>
                 
@@ -618,7 +618,7 @@ const TopicDetail: React.FC = () => {
                           </Badge>
                         )}
                       </div>
-                      <div className="mt-2 prose max-w-none prose-sm">
+                      <div className="mt-2 prose max-w-none prose-sm break-words overflow-wrap-anywhere">
                         {typeof post.content === 'string' ? renderContent(post.content) : 'Loading...'}
                       </div>
                       

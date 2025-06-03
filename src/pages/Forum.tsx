@@ -12,6 +12,7 @@ import SearchFilters, { SearchFilters as SearchFiltersType } from '@/components/
 import { forumsAPI } from '@/services/api';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import './forum-styles.css';
 
 const Forum: React.FC = () => {
   const { user } = useAuth();
