@@ -292,7 +292,15 @@ export const roomsAPI = {
 
   // New function to get students for a teacher
   getTeacherStudents: async (teacherId: string) => {
-    return apiRequest(`/rooms/teacher-students/?teacher_id=${teacherId}`);
+    try {
+      console.log(`Fetching students for teacher ID: ${teacherId}`);
+      const response = await apiRequest(`/rooms/teacher-students/?teacher_id=${teacherId}`);
+      console.log('Teacher students response:', response);
+      return response || [];
+    } catch (error) {
+      console.error(`Error fetching students for teacher ${teacherId}:`, error);
+      return [];
+    }
   },
 };
 

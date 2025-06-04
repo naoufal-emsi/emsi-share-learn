@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type Theme = 'light' | 'dark';
+type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
@@ -8,31 +8,66 @@ interface ThemeContextType {
   toggleTheme: () => void;
 }
 
+interface ThemeProviderProps {
+  children: React.ReactNode;
+  defaultTheme?: Theme;
+  storageKey?: string;
+}
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>('light');
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ 
+  children, 
+  defaultTheme = 'system',
+  storageKey = 'theme'
+}) => {
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
 
   useEffect(() => {
-    // Check for system preference or saved preference
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Check for saved preference
+    const savedTheme = localStorage.getItem(storageKey) as Theme | null;
     
     if (savedTheme) {
       setTheme(savedTheme);
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-    } else if (prefersDark) {
-      setTheme('dark');
-      document.documentElement.classList.add('dark');
+      applyTheme(savedTheme);
+    } else {
+      applyTheme(defaultTheme);
     }
-  }, []);
+  }, [defaultTheme, storageKey]);
+
+  const applyTheme = (theme: Theme) => {
+    const isDark = 
+      theme === 'dark' || 
+      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    
+    document.documentElement.classList.toggle('dark', isDark);
+  };
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.classList.toggle('dark', newTheme === 'dark');
+    localStorage.setItem(storageKey, newTheme);
+    applyTheme(newTheme);
   };
+
+  useEffect(() => {
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (theme === 'system') {
+        applyTheme('system');
+      }
+    };
+    
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [theme]);
+
+  // Update theme when it changes
+  useEffect(() => {
+    localStorage.setItem(storageKey, theme);
+    applyTheme(theme);
+  }, [theme, storageKey]);
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>

@@ -32,10 +32,7 @@ const StudentDashboard: React.FC = () => {
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [forumLoading, setForumLoading] = useState(true);
   
-  const upcomingEvents = [
-    { id: 1, title: 'Tech Workshop', date: '2023-11-18', location: 'Amphi A' },
-    { id: 2, title: 'Career Fair', date: '2023-11-25', location: 'Main Campus' },
-  ];
+  // Removed hardcoded upcoming events data
 
   // Fetch recent downloads, student rooms, and quizzes
   useEffect(() => {
@@ -322,60 +319,86 @@ const StudentDashboard: React.FC = () => {
         </CardFooter>
       </Card>
       
-      {/* Upcoming Events */}
+      {/* Recent Resources (Duplicated to fill space) */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
-          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Popular Resources</CardTitle>
+          <BookMarked className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {upcomingEvents.map(event => (
-              <div key={event.id} className="flex items-start">
-                <CalendarDays className="h-4 w-4 mr-2 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">{event.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(event.date).toLocaleDateString()} at {event.location}
-                  </p>
-                </div>
+            {loading ? (
+              <div className="space-y-4 animate-pulse">
+                <div className="h-6 bg-muted rounded"></div>
+                <div className="h-6 bg-muted rounded"></div>
+                <div className="h-6 bg-muted rounded"></div>
               </div>
-            ))}
+            ) : (
+              recentDownloads.map(resource => (
+                <div key={resource.id} className="flex items-start">
+                  {resource.type === 'document' ? (
+                    <FileText className="h-4 w-4 mr-2 text-primary" />
+                  ) : (
+                    <BookMarked className="h-4 w-4 mr-2 text-primary" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">{resource.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {resource.type} by {resource.created_by?.first_name} {resource.created_by?.last_name}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
         <CardFooter>
-          <Link to="/events" className="text-xs text-primary hover:underline">
-            View all events
+          <Link to="/resources" className="text-xs text-primary hover:underline">
+            Browse all resources
           </Link>
         </CardFooter>
       </Card>
       
-      {/* Quick Actions */}
+      {/* Recent Quizzes (Duplicated to fill space) */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Quick Actions</CardTitle>
-          <CardDescription className="text-xs">Access your most used features</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Recent Quiz Attempts</CardTitle>
+          <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="h-18 flex flex-col items-center justify-center py-3">
-              <FileText className="h-4 w-4 mb-1" />
-              <span className="text-xs">Find Resources</span>
-            </Button>
-            <Button variant="outline" size="sm" className="h-18 flex flex-col items-center justify-center py-3">
-              <GraduationCap className="h-4 w-4 mb-1" />
-              <span className="text-xs">Take a Quiz</span>
-            </Button>
-            <Button variant="outline" size="sm" className="h-18 flex flex-col items-center justify-center py-3">
-              <MessageSquare className="h-4 w-4 mb-1" />
-              <span className="text-xs">Forum Discussions</span>
-            </Button>
-            <Button variant="outline" size="sm" className="h-18 flex flex-col items-center justify-center py-3">
-              <CalendarDays className="h-4 w-4 mb-1" />
-              <span className="text-xs">Check Events</span>
-            </Button>
-          </div>
+          {roomsLoading ? (
+            <div className="space-y-4 animate-pulse">
+              <div className="h-6 bg-muted rounded"></div>
+              <div className="h-6 bg-muted rounded"></div>
+              <div className="h-6 bg-muted rounded"></div>
+            </div>
+          ) : quizzes.length > 0 ? (
+            <div className="space-y-4">
+              {quizzes.slice(0, 3).map(quiz => (
+                <div key={quiz.id} className="flex items-start">
+                  <GraduationCap className="h-4 w-4 mr-2 text-primary" />
+                  <div>
+                    <p className="text-sm font-medium">{quiz.title}</p>
+                    <div className="flex items-center mt-1">
+                      <p className="text-xs text-muted-foreground mr-2">
+                        {quiz.questions?.length || 0} questions
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground">No quiz attempts yet</p>
+            </div>
+          )}
         </CardContent>
+        <CardFooter>
+          <Link to="/quiz" className="text-xs text-primary hover:underline">
+            View all quizzes
+          </Link>
+        </CardFooter>
       </Card>
     </div>
   );

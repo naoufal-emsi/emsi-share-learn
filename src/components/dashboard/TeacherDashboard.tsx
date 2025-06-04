@@ -15,6 +15,7 @@ import {
   FileCheck,
   CalendarDays
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import {roomsAPI, resourcesAPI, quizzesAPI, forumsAPI} from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming your hook is named useAuth
 
@@ -272,78 +273,63 @@ const TeacherDashboard: React.FC = () => {
         </CardFooter>
       </Card>
       
-      {/* Resource Approval */}
+      {/* Recent Quizzes (Duplicated to fill space) */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Resource Approval</CardTitle>
-          <FileCheck className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Recent Quiz Results</CardTitle>
+          <GraduationCap className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="bg-muted p-3 rounded-md">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Advanced Algorithms Notes</span>
-                <Badge variant="outline">PDF</Badge>
+          <div className="space-y-2">
+            {allStudentAnswers.length > 0 ? (
+              allStudentAnswers.slice(0, 3).map((answer, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{answer.student_name || `Student ${answer.student_id}`}</span>
+                  <span className="text-sm font-medium">{answer.score}%</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">No quiz results yet</p>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Submitted by: Mohammed A. - 2 days ago
-              </p>
-              <div className="flex space-x-2">
-                <Button size="sm" variant="default" className="h-7 text-xs">Approve</Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs">Reject</Button>
-              </div>
-            </div>
-            
-            <div className="bg-muted p-3 rounded-md">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Web Dev Project Example</span>
-                <Badge variant="outline">Video</Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Submitted by: Fatima L. - 1 day ago
-              </p>
-              <div className="flex space-x-2">
-                <Button size="sm" variant="default" className="h-7 text-xs">Approve</Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs">Reject</Button>
-              </div>
-            </div>
+            )}
           </div>
         </CardContent>
         <CardFooter>
-          <Link to="/resources/approval" className="text-xs text-primary hover:underline">
-            View all pending resources
+          <Link to="/quiz" className="text-xs text-primary hover:underline">
+            View all quiz results
           </Link>
         </CardFooter>
       </Card>
       
-      {/* Upcoming Events */}
+      {/* Student Activity (Duplicated to fill space) */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Upcoming Events</CardTitle>
-          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Student Activity</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium">Tech Workshop</p>
-              <p className="text-xs text-muted-foreground">Nov 18, 2023 - Amphi A</p>
-              <Badge variant="outline" className="mt-1 text-xs">Organizer</Badge>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Active Students</span>
+              <span className="text-sm font-medium">{students.length}</span>
             </div>
-            <div>
-              <p className="text-sm font-medium">Database Exam</p>
-              <p className="text-xs text-muted-foreground">Nov 22, 2023 - Room C12</p>
-              <Badge variant="outline" className="mt-1 text-xs">Proctor</Badge>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Resource Downloads</span>
+              <span className="text-sm font-medium">
+                {resources.reduce((sum, resource) => sum + (resource.download_count || 0), 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Quiz Participation</span>
+              <span className="text-sm font-medium">{allStudentAnswers.length}</span>
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Link to="/events" className="text-xs text-primary hover:underline">
-            View all events
+        <CardFooter>
+          <Link to="/analytics" className="text-xs text-primary hover:underline">
+            View detailed stats
           </Link>
-          <Button size="sm" variant="outline" className="h-8 gap-1">
-            <PlusCircle className="h-3 w-3" />
-            <span className="text-xs">Create</span>
-          </Button>
         </CardFooter>
       </Card>
     </div>
