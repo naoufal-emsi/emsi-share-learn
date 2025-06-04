@@ -187,3 +187,60 @@ class UserProfilePictureView(views.APIView):
             return Response({'image': f'data:{mime};base64,{b64}'})
         except User.DoesNotExist:
             return Response({'detail': 'User not found.'}, status=404)
+            
+class AdminUserUpdateView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    
+    def post(self, request, user_id):
+        # Only allow administration to update users
+        if request.user.role != 'administration':
+            return Response({'detail': 'Only administration can update user profiles.'}, 
+                           status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            user_to_update = User.objects.get(id=user_id)
+            
+            # Update basic fields
+            if 'username' in request.data:
+                user_to_update.username = request.data['username']
+            if 'email' in request.data:
+                user_to_update.email = request.data['email']
+            if 'first_name' in request.data:
+                user_to_update.first_name = request.data['first_name']
+            if 'last_name' in request.data:
+                user_to_update.last_name = request.data['last_name']
+            if 'role' in request.data:
+                user_to_update.role = request.data['role']
+            if 'password' in request.data and request.data['password']:
+                user_to_update.password = make_password(request.data['password'])
+            
+            # Handle profile picture
+            if 'profile_picture' in request.data and request.data['profile_picture']:
+                # Handle base64 encoded image
+                if isinstance(request.data['profile_picture'], str) and request.data['profile_picture'].startswith('data:'):
+                    # Extract the base64 part
+                    format, imgstr = request.data['profile_picture'].split(';base64,')
+                    # Decode and save
+                    user_to_update.profile_picture = base64.b64decode(imgstr)
+            
+            # Handle file upload
+            profile_pic = request.FILES.get('profile_picture')
+            if profile_pic:
+                user_to_update.profile_picture = profile_pic.read()
+            
+            user_to_update.save()
+            
+            # Return updated user data
+            return Response({
+                'id': user_to_update.id,
+                'username': user_to_update.username,
+                'email': user_to_update.email,
+                'first_name': user_to_update.first_name,
+                'last_name': user_to_update.last_name,
+                'role': user_to_update.role,
+                'profile_picture_data': f'data:image/png;base64,{base64.b64encode(user_to_update.profile_picture).decode("utf-8")}' if user_to_update.profile_picture else None
+            })
+            
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)

@@ -26,7 +26,7 @@ router.register(r'forums/posts', ForumPostViewSet)
 router.register(r'forums/attachments', ForumAttachmentViewSet)
 router.register(r'notifications', NotificationViewSet, basename='notification')
 
-from users.views import UserDeleteView, AdminUserCreateView
+from users.views import UserDeleteView, AdminUserCreateView, AdminUserUpdateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -40,6 +40,7 @@ urlpatterns = [
     path('api/users/', UserListView.as_view(), name='users'),
     path('api/users/create/', AdminUserCreateView.as_view(), name='user_create'),
     path('api/users/<str:user_id>/', UserDeleteView.as_view(), name='user_delete'),
+    path('api/users/<str:user_id>/update/', AdminUserUpdateView.as_view(), name='admin_user_update'),
     path('api/users/<int:user_id>/profile-picture/', UserProfilePictureView.as_view(), name='user_profile_picture'),
     path('api/auth/profile/picture/upload/', ProfilePictureDBUploadView.as_view(), name='profile_picture_upload'),
     path('api/auth/profile/picture/', ProfilePictureDBGetView.as_view(), name='profile_picture_get'),

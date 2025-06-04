@@ -121,6 +121,27 @@ export const authAPI = {
     }
   },
   
+  updateUser: async (userId: string, userData: Partial<{
+    username: string;
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+    role: 'student' | 'teacher' | 'admin' | 'administration';
+    profile_picture?: string;
+  }>) => {
+    try {
+      const response = await apiRequest(`/users/${userId}/update/`, {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  },
+  
   createUser: async (userData: {
     username: string;
     email: string;
