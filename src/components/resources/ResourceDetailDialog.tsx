@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { resourcesAPI } from '@/services/api';
@@ -749,20 +750,38 @@ const ResourceDetailDialog: React.FC<ResourceDetailDialogProps> = ({
               {isDownloading ? 'Downloading...' : 'Download'}
             </Button>
 
-            {onDelete && resource && (user?.id === resource.uploaded_by.id || user?.role === 'admin' || user?.role === 'administration') && (
-              <Button 
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete this resource? This action cannot be undone.')) {
-                    onDelete(resource.id);
-                    onOpenChange(false);
-                  }
-                }}
-                variant="destructive"
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
+            {onDelete && resource && (user?.id === resource.uploaded_by.id || user?.role === 'administration') && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive"
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete Resource
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Resource</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{resource.title}"? This action cannot be undone and the resource will be permanently removed.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        onDelete(resource.id);
+                        onOpenChange(false);
+                      }}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </div>

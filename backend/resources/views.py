@@ -38,9 +38,25 @@ class ResourceViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'title']
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ['create', 'update', 'partial_update']:
             self.permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
+        elif self.action == 'destroy':
+            self.permission_classes = [permissions.IsAuthenticated]
         return super().get_permissions()
+    
+    def destroy(self, request, *args, **kwargs):
+        """Delete a resource - only owner or administration can delete"""
+        resource = self.get_object()
+        user = request.user
+        
+        # Check if user can delete this resource
+        if user.role == 'administration' or resource.uploaded_by == user:
+            return super().destroy(request, *args, **kwargs)
+        else:
+            return Response(
+                {"detail": "You do not have permission to delete this resource."},
+                status=status.HTTP_403_FORBIDDEN
+            )
     
     def create(self, request, *args, **kwargs):
         logger.info(f"Request data: {request.data}")

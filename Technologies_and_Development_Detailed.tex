@@ -1,0 +1,464 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+
+\geometry{margin=2.5cm}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Technologies et Développement - EMSI Share-Learn}
+\fancyfoot[C]{\thepage}
+
+% Code styling
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\title{\textbf{Technologies et Développement\\EMSI Share-Learn}}
+\author{Projet de Fin d'Année}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Développement Frontend}
+
+\subsection{Structure générale et Configuration}
+
+Le frontend du projet EMSI Share-Learn est développé avec \textbf{React 18.2.0} et utilise \textbf{TypeScript 5.2.2} pour assurer un typage robuste et une meilleure maintenance du code. Le projet est configuré avec \textbf{Vite 6.3.5} comme outil de build moderne, offrant un développement rapide grâce à son système de Hot Module Replacement (HMR) et des temps de compilation optimisés.
+
+La configuration Vite est personnalisée pour supporter :
+\begin{itemize}
+    \item Un serveur de développement sur le port 8080 avec accès réseau (host: "0.0.0.0")
+    \item Des alias de chemins avec "@" pointant vers "./src"
+    \item L'intégration complète avec React et TypeScript
+\end{itemize}
+
+\subsection{Gestion du Design et Styling}
+
+Le design est entièrement géré avec \textbf{Tailwind CSS 3.4.1}, adoptant une approche utilitaire moderne qui facilite la gestion cohérente du style. La configuration Tailwind inclut :
+
+\textbf{Palette de couleurs personnalisée EMSI :}
+\begin{itemize}
+    \item Couleur primaire : \texttt{\#00a651} (vert EMSI Tanger)
+    \item Variantes : \texttt{\#5dbea3} (vert clair), \texttt{\#00853e} (vert foncé)
+    \item Couleurs secondaires : slate blue-gray, amber, et une palette complète pour les modes sombre/clair
+\end{itemize}
+
+\textbf{Système de thèmes avancé :}
+\begin{itemize}
+    \item Support complet du mode sombre/clair avec \texttt{next-themes 0.3.0}
+    \item Variables CSS personnalisées pour une cohérence visuelle
+    \item Animations et transitions fluides avec \texttt{tailwindcss-animate}
+\end{itemize}
+
+\subsection{Architecture et Organisation du Code}
+
+Le code frontend suit une architecture modulaire stricte organisée en plusieurs dossiers spécialisés :
+
+\textbf{Structure des composants :}
+\begin{lstlisting}
+src/
+├── components/
+│   ├── admin/           # Composants d'administration (PendingResourcesPanel)
+│   ├── dashboard/       # Tableaux de bord (StudentDashboard, TeacherDashboard)
+│   ├── editor/          # Éditeurs (CodeEditor, MarkdownEditor)
+│   ├── events/          # Gestion d'événements (CreateEventDialog, CollaboratorsList)
+│   ├── forum/           # Forum (TopicDetail, NewDiscussionModal, RichTextEditor)
+│   ├── layout/          # Mise en page (Header, Sidebar, MainLayout)
+│   ├── resources/       # Ressources (ResourceCard, PDFViewer, ResourceUploadDialog)
+│   ├── rooms/           # Salles de classe (RoomCard, CreateRoomDialog)
+│   └── ui/              # Composants UI réutilisables (50+ composants)
+\end{lstlisting}
+
+\textbf{Pages principales :}
+\begin{itemize}
+    \item \texttt{Dashboard.tsx} : Tableau de bord principal avec logique métier
+    \item \texttt{Resources.tsx} : Gestion complète des ressources pédagogiques
+    \item \texttt{Forum.tsx} : Système de forum avec discussions avancées
+    \item \texttt{Events.tsx} : Planification et gestion d'événements
+    \item \texttt{Quiz.tsx} : Interface de quiz interactifs
+    \item \texttt{Rooms.tsx} / \texttt{StudentRooms.tsx} : Gestion des salles de classe
+\end{itemize}
+
+\subsection{Gestion d'État et Contextes}
+
+L'application utilise plusieurs contextes React pour la gestion d'état globale :
+
+\textbf{AuthContext :} Gestion complète de l'authentification avec :
+\begin{itemize}
+    \item Authentification JWT avec cookies sécurisés
+    \item Gestion des rôles utilisateur (student, teacher, admin, administration)
+    \item Mise à jour de profil en temps réel
+    \item Gestion des photos de profil avec stockage binaire
+\end{itemize}
+
+\textbf{ThemeContext :} Système de thèmes avec :
+\begin{itemize}
+    \item Basculement automatique sombre/clair
+    \item Persistance des préférences utilisateur
+    \item Synchronisation avec les variables CSS Tailwind
+\end{itemize}
+
+\textbf{PlatformContext :} Configuration de la plateforme avec :
+\begin{itemize}
+    \item Paramètres globaux personnalisables
+    \item Gestion du logo et branding
+    \item Configuration des tailles de pagination
+\end{itemize}
+
+\subsection{Bibliothèques et Dépendances Avancées}
+
+\textbf{Interface utilisateur (Radix UI) :}
+\begin{itemize}
+    \item 15+ composants Radix UI pour une accessibilité maximale
+    \item Composants complexes : Dialog, Dropdown, Select, Toast, Tooltip
+    \item Gestion avancée des états et interactions
+\end{itemize}
+
+\textbf{Gestion des données :}
+\begin{itemize}
+    \item \texttt{@tanstack/react-query 5.28.4} : Cache intelligent et synchronisation serveur
+    \item Gestion optimisée des requêtes API avec invalidation automatique
+    \item États de chargement et d'erreur centralisés
+\end{itemize}
+
+\textbf{Traitement de documents :}
+\begin{itemize}
+    \item \texttt{@react-pdf-viewer/core 3.12.0} : Visualisation PDF avancée
+    \item \texttt{react-pdf 7.7.1} : Rendu PDF côté client
+    \item \texttt{docx 9.5.0} : Traitement des documents Word
+    \item \texttt{xlsx 0.18.5} : Gestion des fichiers Excel
+    \item \texttt{jszip 3.10.1} : Manipulation d'archives ZIP
+\end{itemize}
+
+\textbf{Éditeurs et formatage :}
+\begin{itemize}
+    \item \texttt{react-markdown 10.1.0} : Rendu Markdown avec support LaTeX
+    \item \texttt{react-katex 3.1.0} : Formules mathématiques
+    \item \texttt{highlight.js 11.11.1} : Coloration syntaxique du code
+    \item \texttt{prism-react-renderer 2.4.1} : Mise en évidence de code avancée
+\end{itemize}
+
+\subsection{Services API et Communication Backend}
+
+Le système de communication avec le backend est centralisé dans \texttt{src/services/api.ts} avec :
+
+\textbf{Architecture API modulaire :}
+\begin{lstlisting}[language=JavaScript]
+// Modules API spécialisés
+export const authAPI = { login, register, getMe, updateProfile }
+export const roomsAPI = { getRooms, createRoom, joinRoom, getTeacherStudents }
+export const resourcesAPI = { getResources, uploadResource, downloadResource }
+export const forumsAPI = { getTopics, createTopic, getPosts, createPost }
+export const eventsAPI = { getEvents, createEvent, attendEvent }
+export const quizzesAPI = { getQuizzes, submitQuiz, getResults }
+export const notificationsAPI = { getNotifications, markAsRead }
+\end{lstlisting}
+
+\textbf{Gestion d'erreurs robuste :}
+\begin{itemize}
+    \item Retry automatique pour les erreurs de connexion PostgreSQL
+    \item Gestion spécifique des contraintes de base de données
+    \item Messages d'erreur contextuels et informatifs
+    \item Fallback gracieux en cas d'échec réseau
+\end{itemize}
+
+\textbf{Authentification sécurisée :}
+\begin{itemize}
+    \item Tokens JWT avec refresh automatique
+    \item Cookies sécurisés avec expiration configurée
+    \item Headers d'autorisation automatiques
+    \item Gestion des sessions expirées
+\end{itemize}
+
+\subsection{Fonctionnalités Frontend Avancées}
+
+\textbf{Upload de fichiers sophistiqué :}
+\begin{itemize}
+    \item Support multi-format (PDF, Word, Excel, ZIP, images, vidéos)
+    \item Validation côté client avec preview
+    \item Barre de progression en temps réel
+    \item Gestion des gros fichiers (jusqu'à 500MB)
+\end{itemize}
+
+\textbf{Interface responsive complète :}
+\begin{itemize}
+    \item Design mobile-first avec Tailwind CSS
+    \item Breakpoints personnalisés : sm, md, lg, xl, 2xl
+    \item Composants adaptatifs pour tous les écrans
+    \item Navigation optimisée tactile
+\end{itemize}
+
+\textbf{Accessibilité (WCAG 2.1) :}
+\begin{itemize}
+    \item Support complet du clavier
+    \item Lecteurs d'écran compatibles
+    \item Contraste de couleurs optimisé
+    \item Focus management avancé
+\end{itemize}
+
+\section{Développement Backend}
+
+\subsection{Architecture Django et Configuration}
+
+Le backend est développé avec \textbf{Django 5.0.0}, un framework Python robuste, associé à \textbf{Django REST Framework 3.14.0} pour la création d'APIs REST modernes. La structure suit les meilleures pratiques Django avec une organisation modulaire par applications.
+
+\textbf{Configuration de base :}
+\begin{lstlisting}[language=Python]
+# Applications Django spécialisées
+INSTALLED_APPS = [
+    'users',              # Gestion utilisateurs avancée
+    'rooms',              # Salles de classe virtuelles
+    'resources',          # Ressources pédagogiques
+    'quizzes',            # Système de quiz
+    'forums',             # Forum de discussion
+    'notifications',      # Notifications en temps réel
+    'events',             # Gestion d'événements
+    'platform_settings',  # Configuration plateforme
+]
+\end{lstlisting}
+
+\subsection{Base de Données PostgreSQL}
+
+\textbf{Configuration PostgreSQL optimisée :}
+\begin{itemize}
+    \item Base de données : \texttt{emsi\_share\_db}
+    \item Utilisateur : \texttt{postgres} avec permissions complètes
+    \item Port : 5432 (configuration standard)
+    \item Gestion des gros objets avec \texttt{large\_objects\_config.sql}
+\end{itemize}
+
+\textbf{Limites de fichiers configurées :}
+\begin{itemize}
+    \item \texttt{DATA\_UPLOAD\_MAX\_MEMORY\_SIZE} : 500MB
+    \item \texttt{FILE\_UPLOAD\_MAX\_MEMORY\_SIZE} : 500MB
+    \item Support des fichiers binaires en base avec \texttt{BinaryField}
+\end{itemize}
+
+\subsection{Modélisation Avancée des Données}
+
+\textbf{Modèle User étendu :}
+\begin{lstlisting}[language=Python]
+class User(AbstractUser):
+    ROLE_CHOICES = [
+        ('student', 'Student'),
+        ('teacher', 'Teacher'), 
+        ('admin', 'Admin'),
+        ('administration', 'Administration'),
+    ]
+    email = models.EmailField(unique=True)  # Email comme identifiant
+    role = models.CharField(max_length=15, choices=ROLE_CHOICES)
+    avatar = models.ImageField(upload_to='avatars/')
+    profile_picture = models.BinaryField()  # Stockage binaire direct
+    is_verified = models.BooleanField(default=False)
+    last_activity = models.DateTimeField(auto_now=True)
+\end{lstlisting}
+
+\textbf{Modèle Resource sophistiqué :}
+\begin{lstlisting}[language=Python]
+class Resource(models.Model):
+    RESOURCE_TYPES = [
+        ('document', 'Document'), ('video', 'Video'), ('code', 'Code'),
+        ('pdf', 'PDF Document'), ('audio', 'Audio'), ('image', 'Image'),
+        ('doc', 'Word Document'), ('ppt', 'PowerPoint'), 
+        ('excel', 'Excel'), ('zip', 'ZIP Archive'), ('other', 'Other'),
+    ]
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'), 
+        ('rejected', 'Rejected'),
+    ]
+    file_data = models.BinaryField()  # Stockage binaire direct
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=100)  # MIME type
+    status = models.CharField(choices=STATUS_CHOICES, default='approved')
+    reviewed_by = models.ForeignKey(User, related_name='reviewed_resources')
+\end{lstlisting}
+
+\textbf{Modèle Forum complet :}
+\begin{lstlisting}[language=Python]
+class ForumTopic(models.Model):
+    STATUS_CHOICES = [('open', 'Open'), ('closed', 'Closed'), 
+                     ('pinned', 'Pinned'), ('locked', 'Locked')]
+    
+    is_solved = models.BooleanField(default=False)
+    solved_by = models.ForeignKey(User, related_name='solved_topics')
+    view_count = models.IntegerField(default=0)
+    like_count = models.IntegerField(default=0)
+    attachment_data = models.BinaryField()  # Pièces jointes
+    tags = models.CharField(max_length=500)  # Tags pour recherche
+\end{lstlisting}
+
+\subsection{API REST Framework Avancée}
+
+\textbf{ViewSets spécialisés avec actions personnalisées :}
+
+\textbf{ResourceViewSet :}
+\begin{lstlisting}[language=Python]
+@action(detail=True, methods=['post'], url_path='approve')
+def approve_resource(self, request, pk=None):
+    # Logique d'approbation avec notifications automatiques
+    
+@action(detail=True, methods=['get'], url_path='download') 
+def download(self, request, pk=None):
+    # Téléchargement sécurisé avec headers appropriés
+\end{lstlisting}
+
+\textbf{ForumTopicViewSet :}
+\begin{lstlisting}[language=Python]
+@action(detail=True, methods=['post'])
+def toggle_solved(self, request, pk=None):
+    # Marquage solution avec notification du solutionneur
+    
+@action(detail=True, methods=['post'])
+def like_topic(self, request, pk=None):
+    # Système de likes avec compteurs en temps réel
+\end{lstlisting}
+
+\subsection{Système d'Authentification JWT}
+
+\textbf{Configuration Simple JWT :}
+\begin{lstlisting}[language=Python]
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
+    'AUTH_COOKIE': 'emsi_access',
+    'AUTH_COOKIE_REFRESH': 'emsi_refresh',
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_SAMESITE': 'Lax',
+}
+\end{lstlisting}
+
+\textbf{Endpoints d'authentification :}
+\begin{itemize}
+    \item \texttt{POST /api/token/} : Connexion avec email/mot de passe
+    \item \texttt{POST /api/token/refresh/} : Renouvellement de token
+    \item \texttt{POST /api/auth/register/} : Inscription avec validation
+    \item \texttt{GET /api/auth/me/} : Profil utilisateur actuel
+\end{itemize}
+
+\subsection{Gestion des Permissions et Sécurité}
+
+\textbf{Permissions personnalisées :}
+\begin{lstlisting}[language=Python]
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return obj.uploaded_by == request.user
+\end{lstlisting}
+
+\textbf{Validation des rôles :}
+\begin{itemize}
+    \item Administrateurs : accès complet à toutes les ressources
+    \item Enseignants : gestion de leurs salles et ressources
+    \item Étudiants : soumission avec approbation requise
+\end{itemize}
+
+\subsection{Système de Notifications Avancé}
+
+\textbf{Types de notifications automatiques :}
+\begin{itemize}
+    \item Approbation/rejet de ressources
+    \item Nouvelles réponses dans le forum
+    \item Invitations à des événements
+    \item Rappels de quiz
+    \item Activité dans les salles de classe
+\end{itemize}
+
+\textbf{Modèle Notification :}
+\begin{lstlisting}[language=Python]
+class Notification(models.Model):
+    recipient = models.ForeignKey(User, related_name='notifications')
+    sender = models.ForeignKey(User, related_name='sent_notifications')
+    notification_type = models.ForeignKey(NotificationType)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    action_url = models.CharField(max_length=500)
+    is_read = models.BooleanField(default=False)
+    priority = models.CharField(choices=PRIORITY_CHOICES)
+\end{lstlisting}
+
+\subsection{Endpoints API Complets}
+
+\textbf{Ressources :}
+\begin{itemize}
+    \item \texttt{GET /api/resources/} : Liste avec filtres (statut, catégorie, recherche)
+    \item \texttt{POST /api/resources/} : Upload avec validation automatique
+    \item \texttt{GET /api/resources/\{id\}/download/} : Téléchargement sécurisé
+    \item \texttt{POST /api/resources/\{id\}/approve/} : Approbation (admin)
+    \item \texttt{POST /api/resources/\{id\}/reject/} : Rejet avec raison
+\end{itemize}
+
+\textbf{Forum :}
+\begin{itemize}
+    \item \texttt{GET /api/forums/topics/} : Topics avec filtres avancés
+    \item \texttt{POST /api/forums/topics/} : Création avec pièces jointes
+    \item \texttt{POST /api/forums/topics/\{id\}/toggle\_solved/} : Marquage solution
+    \item \texttt{GET /api/forums/posts/?topic=\{id\}} : Posts d'un topic
+    \item \texttt{POST /api/forums/posts/\{id\}/vote/} : Système de votes
+\end{itemize}
+
+\textbf{Événements :}
+\begin{itemize}
+    \item \texttt{GET /api/events/} : Événements avec filtres temporels
+    \item \texttt{POST /api/events/} : Création avec collaborateurs
+    \item \texttt{POST /api/events/\{id\}/attend/} : Participation
+    \item \texttt{GET /api/events/\{id\}/attendees/} : Liste des participants
+\end{itemize}
+
+\subsection{Gestion des Fichiers et Performance}
+
+\textbf{Stockage binaire optimisé :}
+\begin{itemize}
+    \item Fichiers stockés directement en base (BinaryField)
+    \item Compression automatique pour les gros fichiers
+    \item Validation MIME type côté serveur
+    \item Limitation de taille configurable
+\end{itemize}
+
+\textbf{Optimisations de requêtes :}
+\begin{itemize}
+    \item Select\_related et prefetch\_related systématiques
+    \item Pagination automatique pour les grandes listes
+    \item Index de base de données sur les champs de recherche
+    \item Cache de requêtes fréquentes
+\end{itemize}
+
+\section{Conclusion}
+
+Cette architecture complète et ces technologies modernes garantissent une plateforme robuste, scalable et maintenable pour l'écosystème éducatif EMSI.
+
+\end{document}
