@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -30,11 +31,6 @@ interface QuizData {
   }>;
 }
 
-interface QuizProps {
-  quizId: string;
-  onClose: () => void;
-}
-
 interface QuizResult {
   id: string;
   quiz: string;
@@ -48,8 +44,9 @@ interface QuizResult {
   attempts_used: number;
 }
 
-const Quiz: React.FC<QuizProps> = ({ quizId, onClose }) => {
+const Quiz: React.FC = () => {
   const navigate = useNavigate();
+  const { quizId } = useParams<{ quizId: string }>();
   const { toast } = useToast();
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -225,7 +222,7 @@ const Quiz: React.FC<QuizProps> = ({ quizId, onClose }) => {
   };
 
   const handleBackToRoom = () => {
-    onClose(); // Use the onClose prop to close the modal
+    navigate(-1); // Go back to previous page
   };
 
   const handleViewResults = async () => {
@@ -309,7 +306,8 @@ const Quiz: React.FC<QuizProps> = ({ quizId, onClose }) => {
   const selectedOptionId = userAnswers[currentQuestionIndex]?.option_id;
 
   return (
-    <div className="space-y-6">
+    <MainLayout>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold flex items-center tracking-tight">
           <GraduationCap className="mr-2 h-8 w-8" />
@@ -434,7 +432,8 @@ const Quiz: React.FC<QuizProps> = ({ quizId, onClose }) => {
           </Card>
         )}
       </div>
-    </div>
+      </div>
+    </MainLayout>
   );
 };
 

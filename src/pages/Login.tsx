@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlatform } from '@/contexts/PlatformContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const { platformName, platformLogo } = usePlatform();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,7 +48,14 @@ const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">EMSI Share</h1>
+          {platformLogo && (
+            <img 
+              src={platformLogo} 
+              alt={platformName} 
+              className="h-16 w-16 mx-auto mb-4 rounded-lg"
+            />
+          )}
+          <h1 className="text-3xl font-bold text-primary">{platformName}</h1>
           <p className="text-gray-600 mt-2">Collaborative Learning Platform</p>
         </div>
         
@@ -70,12 +79,7 @@ const Login: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlatform } from '@/contexts/PlatformContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,7 @@ const Register: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const { register } = useAuth();
+  const { platformName, platformLogo } = usePlatform();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,7 +84,14 @@ const Register: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary">EMSI Share</h1>
+          {platformLogo && (
+            <img 
+              src={platformLogo} 
+              alt={platformName} 
+              className="h-16 w-16 mx-auto mb-4 rounded-lg"
+            />
+          )}
+          <h1 className="text-3xl font-bold text-primary">{platformName}</h1>
           <p className="text-gray-600 mt-2">Collaborative Learning Platform</p>
         </div>
         
@@ -90,7 +99,7 @@ const Register: React.FC = () => {
           <CardHeader>
             <CardTitle>Create an Account</CardTitle>
             <CardDescription>
-              Join EMSI Share for access to resources and quizzes
+              Join {platformName} for access to resources and quizzes
             </CardDescription>
           </CardHeader>
           <CardContent>
