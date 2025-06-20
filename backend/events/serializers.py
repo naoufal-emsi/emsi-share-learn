@@ -108,12 +108,14 @@ class EventSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         image_upload = validated_data.pop('image_upload', None)
         video_upload = validated_data.pop('video_upload', None)
+        trailer_upload = validated_data.pop('trailer_upload', None)
+        trailer_type = validated_data.pop('trailer_type', None)
         
         validated_data['created_by'] = self.context['request'].user
         event = super().create(validated_data)
         
+        # Handle image upload (always save to image fields)
         if image_upload:
-            # Format: data:image/jpeg;base64,/9j/4AAQSkZJRg...
             if ';base64,' in image_upload:
                 header, encoded = image_upload.split(';base64,')
                 image_type = header.split('/')[1]
@@ -122,8 +124,8 @@ class EventSerializer(serializers.ModelSerializer):
                 event.image_data = image_data
                 event.image_type = f"image/{image_type}"
                 event.image_name = f"event_{event.id}_image.{image_type}"
-                event.save()
         
+        # Handle video upload (always save to video fields)
         if video_upload:
             if ';base64,' in video_upload:
                 header, encoded = video_upload.split(';base64,')
@@ -133,16 +135,41 @@ class EventSerializer(serializers.ModelSerializer):
                 event.video_data = video_data
                 event.video_type = f"video/{video_type}"
                 event.video_name = f"event_{event.id}_video.{video_type}"
-                event.save()
+        
+        # Handle trailer upload (additional media, doesn't override main image/video)
+        if trailer_upload:
+            if ';base64,' in trailer_upload:
+                header, encoded = trailer_upload.split(';base64,')
+                media_type = header.split('/')[0].split(':')[1]
+                file_type = header.split('/')[1]
+                trailer_data = base64.b64decode(encoded)
+                
+                # Store trailer separately - you may want to add trailer fields to the model
+                # For now, we'll store it based on type if main fields are empty
+                if trailer_type == 'video' and not event.video_data:
+                    event.video_data = trailer_data
+                    event.video_type = f"{media_type}/{file_type}"
+                    event.video_name = f"event_{event.id}_trailer.{file_type}"
+                elif trailer_type == 'image' and not event.image_data:
+                    event.image_data = trailer_data
+                    event.image_type = f"{media_type}/{file_type}"
+                    event.image_name = f"event_{event.id}_trailer.{file_type}"
+        
+        # Save all changes at once
+        if image_upload or video_upload or trailer_upload:
+            event.save()
         
         return event
     
     def update(self, instance, validated_data):
         image_upload = validated_data.pop('image_upload', None)
         video_upload = validated_data.pop('video_upload', None)
+        trailer_upload = validated_data.pop('trailer_upload', None)
+        trailer_type = validated_data.pop('trailer_type', None)
         
         event = super().update(instance, validated_data)
         
+        # Handle image upload
         if image_upload:
             if ';base64,' in image_upload:
                 header, encoded = image_upload.split(';base64,')
@@ -152,8 +179,8 @@ class EventSerializer(serializers.ModelSerializer):
                 event.image_data = image_data
                 event.image_type = f"image/{image_type}"
                 event.image_name = f"event_{event.id}_image.{image_type}"
-                event.save()
         
+        # Handle video upload
         if video_upload:
             if ';base64,' in video_upload:
                 header, encoded = video_upload.split(';base64,')
@@ -163,6 +190,26 @@ class EventSerializer(serializers.ModelSerializer):
                 event.video_data = video_data
                 event.video_type = f"video/{video_type}"
                 event.video_name = f"event_{event.id}_video.{video_type}"
-                event.save()
+        
+        # Handle trailer upload
+        if trailer_upload:
+            if ';base64,' in trailer_upload:
+                header, encoded = trailer_upload.split(';base64,')
+                media_type = header.split('/')[0].split(':')[1]
+                file_type = header.split('/')[1]
+                trailer_data = base64.b64decode(encoded)
+                
+                if trailer_type == 'video' or media_type == 'video':
+                    event.video_data = trailer_data
+                    event.video_type = f"{media_type}/{file_type}"
+                    event.video_name = f"event_{event.id}_trailer.{file_type}"
+                else:
+                    event.image_data = trailer_data
+                    event.image_type = f"{media_type}/{file_type}"
+                    event.image_name = f"event_{event.id}_trailer.{file_type}"
+        
+        # Save all changes at once
+        if image_upload or video_upload or trailer_upload:
+            event.save()
         
         return event

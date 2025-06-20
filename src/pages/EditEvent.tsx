@@ -81,6 +81,8 @@ const EditEvent: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [trailerFile, setTrailerFile] = useState<File | null>(null);
   const [trailerPreview, setTrailerPreview] = useState<string | null>(null);
   const [trailerType, setTrailerType] = useState<'image' | 'video' | null>(null);
@@ -120,6 +122,13 @@ const EditEvent: React.FC = () => {
           setImagePreview(`data:image/jpeg;base64,${data.image_base64}`);
         } else if (data.image_data) {
           setImagePreview(data.image_data);
+        }
+        
+        // Set video preview if available
+        if (data.video_base64) {
+          setVideoPreview(`data:video/mp4;base64,${data.video_base64}`);
+        } else if (data.video_data) {
+          setVideoPreview(data.video_data);
         }
         
         // Set trailer preview if available
@@ -216,6 +225,16 @@ const EditEvent: React.FC = () => {
         });
       }
       
+      // Process video if provided
+      let videoUpload;
+      if (videoFile) {
+        const reader = new FileReader();
+        videoUpload = await new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(videoFile);
+        });
+      }
+      
       // Process trailer if provided
       let trailerUpload;
       if (trailerFile) {
@@ -236,8 +255,8 @@ const EditEvent: React.FC = () => {
         is_online: isOnline,
         meeting_link: isOnline ? meetingLink : '',
         image_upload: imageUpload || undefined,
-        video_upload: trailerType === 'video' ? trailerUpload : undefined,
-        trailer_upload: trailerType === 'image' ? trailerUpload : undefined,
+        video_upload: videoUpload || undefined,
+        trailer_upload: trailerUpload || undefined,
         trailer_type: trailerType || undefined
       };
       
@@ -465,11 +484,42 @@ const EditEvent: React.FC = () => {
                       />
                       {imagePreview && (
                         <div className="mt-2">
-                          <p className="text-sm mb-1">Preview:</p>
+                          <p className="text-sm mb-1">Image Preview:</p>
                           <img 
                             src={imagePreview} 
                             alt="Event preview" 
                             className="max-h-40 rounded-md object-cover"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="event-video">Event Video</Label>
+                      <Input
+                        id="event-video"
+                        type="file"
+                        accept="video/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setVideoFile(file);
+                            // Create preview
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setVideoPreview(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      {videoPreview && (
+                        <div className="mt-2">
+                          <p className="text-sm mb-1">Video Preview:</p>
+                          <video 
+                            src={videoPreview} 
+                            controls 
+                            className="max-h-40 rounded-md w-full"
                           />
                         </div>
                       )}

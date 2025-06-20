@@ -593,6 +593,8 @@ export const eventsAPI = {
     room?: number;
     image_upload?: string;
     video_upload?: string;
+    trailer_upload?: string;
+    trailer_type?: 'image' | 'video';
   }) => {
     return apiRequest('/events/', {
       method: 'POST',
