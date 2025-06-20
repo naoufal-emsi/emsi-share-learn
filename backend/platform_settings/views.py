@@ -1,10 +1,9 @@
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from .models import PlatformSettings, DatabaseStats
 from .serializers import PlatformSettingsSerializer, DatabaseStatsSerializer
-import json
 
 class PlatformSettingsView(APIView):
     """
@@ -14,10 +13,9 @@ class PlatformSettingsView(APIView):
     
     def get(self, request):
         """Get platform settings"""
-        # Only admins and administration can access settings
-        if not request.user.is_staff and request.user.role not in ['admin', 'administration']:
+        if request.user.role not in ['admin', 'administration']:
             return Response(
-                {"detail": "You do not have permission to access platform settings."},
+                {"detail": "Permission denied"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -27,16 +25,13 @@ class PlatformSettingsView(APIView):
     
     def post(self, request):
         """Update platform settings"""
-        # Only admins and administration can update settings
-        if not request.user.is_staff and request.user.role not in ['admin', 'administration']:
+        if request.user.role not in ['admin', 'administration']:
             return Response(
-                {"detail": "You do not have permission to modify platform settings."},
+                {"detail": "Permission denied"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         settings = PlatformSettings.get_settings()
-        
-        # Parse the incoming data
         data = request.data
         
         # Update platform name
@@ -57,29 +52,26 @@ class PlatformSettingsView(APIView):
         
         # Update general settings
         if 'generalSettings' in data:
-            general_settings = data['generalSettings']
-            if 'enableRegistration' in general_settings:
-                settings.enable_registration = general_settings['enableRegistration']
-            if 'maintenanceMode' in general_settings:
-                settings.maintenance_mode = general_settings['maintenanceMode']
-            if 'publicProfiles' in general_settings:
-                settings.public_profiles = general_settings['publicProfiles']
+            general = data['generalSettings']
+            if 'enableRegistration' in general:
+                settings.enable_registration = general['enableRegistration']
+            if 'maintenanceMode' in general:
+                settings.maintenance_mode = general['maintenanceMode']
+            if 'publicProfiles' in general:
+                settings.public_profiles = general['publicProfiles']
         
         # Update security settings
         if 'securitySettings' in data:
-            security_settings = data['securitySettings']
-            if 'passwordPolicy' in security_settings:
-                settings.password_policy = security_settings['passwordPolicy']
-            if 'sessionTimeout' in security_settings:
-                settings.session_timeout = security_settings['sessionTimeout']
+            security = data['securitySettings']
+            if 'passwordPolicy' in security:
+                settings.password_policy = security['passwordPolicy']
+            if 'sessionTimeout' in security:
+                settings.session_timeout = security['sessionTimeout']
         
-        # Save the settings
         settings.save()
         
-        # Return the updated settings
         serializer = PlatformSettingsSerializer(settings)
         return Response(serializer.data)
-
 
 class PlatformLogoView(APIView):
     """
@@ -89,20 +81,16 @@ class PlatformLogoView(APIView):
     
     def post(self, request):
         """Update platform logo"""
-        # Only admins and administration can update logo
-        if not request.user.is_staff and request.user.role not in ['admin', 'administration']:
+        if request.user.role not in ['admin', 'administration']:
             return Response(
-                {"detail": "You do not have permission to modify platform logo."},
+                {"detail": "Permission denied"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
         settings = PlatformSettings.get_settings()
         
-        # Parse the incoming data
-        data = request.data
-        
-        if 'logo' in data:
-            settings.logo = data['logo']
+        if 'logo' in request.data:
+            settings.logo = request.data['logo']
             settings.save()
             
             return Response({
@@ -111,10 +99,9 @@ class PlatformLogoView(APIView):
             })
         
         return Response(
-            {"detail": "No logo provided."},
+            {"detail": "No logo provided"},
             status=status.HTTP_400_BAD_REQUEST
         )
-
 
 class DatabaseStatsView(APIView):
     """
@@ -123,53 +110,19 @@ class DatabaseStatsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        """Get database statistics"""
-        # Only admins and administration can access stats
-        if not request.user.is_staff and request.user.role not in ['admin', 'administration']:
+        """Get real-time database statistics"""
+        if request.user.role not in ['admin', 'administration']:
             return Response(
-                {"detail": "You do not have permission to access database statistics."},
+                {"detail": "Permission denied"},
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        stats = DatabaseStats.get_stats()
-        serializer = DatabaseStatsSerializer(stats)
-        return Response(serializer.data)
-    
-    def post(self, request):
-        """Update database statistics (for testing/demo purposes)"""
-        # Only admins and administration can update stats
-        if not request.user.is_staff and request.user.role not in ['admin', 'administration']:
+        try:
+            stats = DatabaseStats.get_stats()
+            serializer = DatabaseStatsSerializer(stats)
+            return Response(serializer.data)
+        except Exception as e:
             return Response(
-                {"detail": "You do not have permission to modify database statistics."},
-                status=status.HTTP_403_FORBIDDEN
+                {"detail": f"Error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        stats = DatabaseStats.get_stats()
-        
-        # Parse the incoming data
-        data = request.data
-        
-        # Update stats
-        if 'used' in data:
-            stats.used_space_gb = data['used']
-        if 'total' in data:
-            stats.total_space_gb = data['total']
-        
-        # Update resource type usage
-        if 'resources' in data:
-            resources = data['resources']
-            if 'documents' in resources:
-                stats.documents_mb = resources['documents']
-            if 'videos' in resources:
-                stats.videos_mb = resources['videos']
-            if 'images' in resources:
-                stats.images_mb = resources['images']
-            if 'code' in resources:
-                stats.code_mb = resources['code']
-        
-        # Save the stats
-        stats.save()
-        
-        # Return the updated stats
-        serializer = DatabaseStatsSerializer(stats)
-        return Response(serializer.data)

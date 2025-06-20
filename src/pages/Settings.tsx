@@ -102,13 +102,17 @@ const Settings: React.FC = () => {
         // Load database stats
         const stats = await platformAPI.getDatabaseStats();
         if (stats) {
+          // Handle new API format with real database stats
+          const resources = stats.resources || {};
           setDatabaseStats(prev => ({
             ...prev,
-            used: stats.used || prev.used,
-            total: stats.total || prev.total,
+            used: ((resources.document?.size_mb || 0) + (resources.video?.size_mb || 0) + (resources.image?.size_mb || 0) + (resources.code?.size_mb || 0)) / 1024, // Convert MB to GB
+            total: 40, // 40GB default
             resources: {
-              ...prev.resources,
-              ...stats.resources
+              documents: resources.document?.size_mb || 0,
+              videos: resources.video?.size_mb || 0,
+              images: resources.image?.size_mb || 0,
+              code: resources.code?.size_mb || 0,
             }
           }));
         }
@@ -300,7 +304,7 @@ const Settings: React.FC = () => {
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm font-medium">Documents</span>
-                          <span className="text-sm font-medium">{databaseStats.resources.documents} MB</span>
+                          <span className="text-sm font-medium">{typeof databaseStats.resources.documents === 'object' ? databaseStats.resources.documents.size_mb : databaseStats.resources.documents} MB</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                           <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${(databaseStats.resources.documents / 1000) * 100}%` }}></div>
@@ -309,7 +313,7 @@ const Settings: React.FC = () => {
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm font-medium">Videos</span>
-                          <span className="text-sm font-medium">{databaseStats.resources.videos} MB</span>
+                          <span className="text-sm font-medium">{typeof databaseStats.resources.videos === 'object' ? databaseStats.resources.videos.size_mb : databaseStats.resources.videos} MB</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                           <div className="bg-red-500 h-2 rounded-full" style={{ width: `${(databaseStats.resources.videos / 1000) * 100}%` }}></div>
@@ -318,7 +322,7 @@ const Settings: React.FC = () => {
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm font-medium">Images</span>
-                          <span className="text-sm font-medium">{databaseStats.resources.images} MB</span>
+                          <span className="text-sm font-medium">{typeof databaseStats.resources.images === 'object' ? databaseStats.resources.images.size_mb : databaseStats.resources.images} MB</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                           <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${(databaseStats.resources.images / 1000) * 100}%` }}></div>
@@ -327,7 +331,7 @@ const Settings: React.FC = () => {
                       <div>
                         <div className="flex justify-between mb-1">
                           <span className="text-sm font-medium">Code</span>
-                          <span className="text-sm font-medium">{databaseStats.resources.code} MB</span>
+                          <span className="text-sm font-medium">{typeof databaseStats.resources.code === 'object' ? databaseStats.resources.code.size_mb : databaseStats.resources.code} MB</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                           <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(databaseStats.resources.code / 1000) * 100}%` }}></div>

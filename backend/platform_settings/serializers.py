@@ -15,7 +15,6 @@ class PlatformSettingsSerializer(serializers.ModelSerializer):
         """Convert to frontend-friendly format"""
         data = super().to_representation(instance)
         
-        # Format the data to match frontend expectations
         return {
             'platformName': data['platform_name'],
             'logo': data['logo'],
@@ -36,28 +35,21 @@ class PlatformSettingsSerializer(serializers.ModelSerializer):
             }
         }
 
-
-class DatabaseStatsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DatabaseStats
-        fields = [
-            'last_updated', 'used_space_gb', 'total_space_gb',
-            'documents_mb', 'videos_mb', 'images_mb', 'code_mb'
-        ]
+class DatabaseStatsSerializer(serializers.Serializer):
+    """Serializer for real-time database statistics"""
     
     def to_representation(self, instance):
-        """Convert to frontend-friendly format"""
-        data = super().to_representation(instance)
+        """Convert real database stats to frontend format"""
+        if isinstance(instance, dict):
+            stats = instance
+        else:
+            stats = DatabaseStats.get_real_stats()
         
-        # Format the data to match frontend expectations
         return {
-            'used': data['used_space_gb'],
-            'total': data['total_space_gb'],
-            'resources': {
-                'documents': data['documents_mb'],
-                'videos': data['videos_mb'],
-                'images': data['images_mb'],
-                'code': data['code_mb'],
+            'database': {
+                'size': stats['database_size']['size_pretty'],
+                'sizeGB': stats['database_size']['size_gb']
             },
-            'lastUpdated': data['last_updated']
+            'records': stats['record_counts'],
+            'resources': stats['resource_types']
         }

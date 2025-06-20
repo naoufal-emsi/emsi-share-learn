@@ -21,13 +21,5 @@ class PlatformSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(DatabaseStats)
 class DatabaseStatsAdmin(admin.ModelAdmin):
-    list_display = ('last_updated', 'used_space_gb', 'total_space_gb')
-    fieldsets = (
-        ('Storage', {
-            'fields': ('used_space_gb', 'total_space_gb', 'last_updated')
-        }),
-        ('Resource Usage', {
-            'fields': ('documents_mb', 'videos_mb', 'images_mb', 'code_mb')
-        }),
-    )
+    list_display = ('last_updated',)
     readonly_fields = ('last_updated',)
