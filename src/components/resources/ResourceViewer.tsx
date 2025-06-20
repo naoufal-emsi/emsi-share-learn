@@ -143,11 +143,12 @@ const ResourceViewer: React.FC<ResourceViewerProps> = ({
   if (resourceType === 'pdf' || fileName.toLowerCase().endsWith('.pdf')) {
     console.log('Rendering PDF viewer with URL:', fileUrl);
     return (
-      <div className="w-full h-[500px] bg-white dark:bg-gray-800 rounded-md overflow-hidden shadow-md">
+      <div className="w-full h-[800px] bg-white dark:bg-gray-800 rounded-md overflow-hidden shadow-md">
         <iframe
-          src={fileUrl}
-          className="w-full h-full"
+          src={`${fileUrl}#view=FitH&toolbar=1&navpanes=1&scrollbar=1`}
+          className="w-full h-full border-0"
           title={fileName}
+          style={{ minHeight: '800px' }}
         />
       </div>
     );

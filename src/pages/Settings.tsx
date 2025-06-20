@@ -98,18 +98,26 @@ const Settings: React.FC = () => {
         
         // Load database stats
         const stats = await platformAPI.getDatabaseStats();
+        console.log('Database stats from API:', stats);
         if (stats) {
           // Handle new API format with real database stats
-          const resources = stats.resources || {};
+          const resourceTypes = stats.resource_types || {};
+          console.log('Resource types:', resourceTypes);
+          const totalUsed = (resourceTypes.documents?.size_mb || 0) + 
+                           (resourceTypes.code?.size_mb || 0) + 
+                           (resourceTypes.videos?.size_mb || 0) + 
+                           (resourceTypes.images?.size_mb || 0) + 
+                           (resourceTypes.other?.size_mb || 0);
+          
           setDatabaseStats(prev => ({
             ...prev,
-            used: ((resources.document?.size_mb || 0) + (resources.video?.size_mb || 0) + (resources.image?.size_mb || 0) + (resources.code?.size_mb || 0)) / 1024, // Convert MB to GB
+            used: stats.database_size?.size_gb || 0, // Use real database size
             total: 40, // 40GB default
             resources: {
-              documents: resources.document?.size_mb || 0,
-              videos: resources.video?.size_mb || 0,
-              images: resources.image?.size_mb || 0,
-              code: resources.code?.size_mb || 0,
+              documents: resourceTypes.documents?.size_mb || 0,
+              videos: resourceTypes.videos?.size_mb || 0,
+              images: resourceTypes.images?.size_mb || 0,
+              code: resourceTypes.code?.size_mb || 0,
             }
           }));
         }

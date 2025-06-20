@@ -94,47 +94,83 @@ class DatabaseStats(models.Model):
                 except:
                     pass
                 
-                # Calculate resource sizes by type
-                resource_stats = {}
+                # Calculate resource stats by proper file type categorization
+                resource_stats = {
+                    'documents': {'count': 0, 'size_mb': 0},
+                    'code': {'count': 0, 'size_mb': 0},
+                    'videos': {'count': 0, 'size_mb': 0},
+                    'images': {'count': 0, 'size_mb': 0},
+                    'other': {'count': 0, 'size_mb': 0}
+                }
+                
                 try:
+                    # Documents: PDF, Word, Excel, PowerPoint, ZIP, etc.
                     cursor.execute("""
-                        SELECT 
-                            type,
-                            COUNT(*) as count,
-                            COALESCE(SUM(file_size), 0) as total_size
+                        SELECT COUNT(*), COALESCE(SUM(file_size), 0)
                         FROM resources_resource 
-                        WHERE file_size IS NOT NULL
-                        GROUP BY type
-                    """)
-                    for type_name, count, total_size in cursor.fetchall():
-                        resource_stats[type_name] = {
-                            'count': count,
-                            'size_mb': round((total_size or 0) / (1024**2), 2)
-                        }
-                    
-                    # Calculate documents by file extensions (json, python, pdf, zip, javascript)
-                    cursor.execute("""
-                        SELECT 
-                            COUNT(*) as count,
-                            COALESCE(SUM(file_size), 0) as total_size
-                        FROM resources_resource 
-                        WHERE file_size IS NOT NULL
-                        AND (file_name ILIKE '%.json' 
-                             OR file_name ILIKE '%.py' 
-                             OR file_name ILIKE '%.pdf' 
-                             OR file_name ILIKE '%.zip' 
-                             OR file_name ILIKE '%.js'
-                             OR file_name ILIKE '%.jsx'
-                             OR file_name ILIKE '%.ts'
-                             OR file_name ILIKE '%.tsx')
+                        WHERE file_name ~* '\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz|txt|rtf|odt|ods|odp)$'
                     """)
                     doc_result = cursor.fetchone()
                     if doc_result:
-                        resource_stats['document'] = {
+                        resource_stats['documents'] = {
                             'count': doc_result[0],
                             'size_mb': round((doc_result[1] or 0) / (1024**2), 2)
                         }
-                except:
+                    
+                    # Code files: JS, Python, Java, C/C++, PHP, SQL, JSON, etc.
+                    cursor.execute("""
+                        SELECT COUNT(*), COALESCE(SUM(file_size), 0)
+                        FROM resources_resource 
+                        WHERE file_name ~* '\.(js|jsx|ts|tsx|py|java|c|cpp|h|hpp|php|sql|json|xml|html|css|scss|sass|rb|go|rs|kt|swift|dart|yaml|yml|sh|bat|ps1)$'
+                    """)
+                    code_result = cursor.fetchone()
+                    if code_result:
+                        resource_stats['code'] = {
+                            'count': code_result[0],
+                            'size_mb': round((code_result[1] or 0) / (1024**2), 2)
+                        }
+                    
+                    # Videos: MP4, AVI, MOV, etc.
+                    cursor.execute("""
+                        SELECT COUNT(*), COALESCE(SUM(file_size), 0)
+                        FROM resources_resource 
+                        WHERE file_name ~* '\.(mp4|avi|mov|wmv|flv|webm|mkv|m4v|3gp|mpg|mpeg)$'
+                    """)
+                    video_result = cursor.fetchone()
+                    if video_result:
+                        resource_stats['videos'] = {
+                            'count': video_result[0],
+                            'size_mb': round((video_result[1] or 0) / (1024**2), 2)
+                        }
+                    
+                    # Images: JPG, PNG, GIF, etc.
+                    cursor.execute("""
+                        SELECT COUNT(*), COALESCE(SUM(file_size), 0)
+                        FROM resources_resource 
+                        WHERE file_name ~* '\.(jpg|jpeg|png|gif|bmp|webp|svg|tiff|tif|ico)$'
+                    """)
+                    image_result = cursor.fetchone()
+                    if image_result:
+                        resource_stats['images'] = {
+                            'count': image_result[0],
+                            'size_mb': round((image_result[1] or 0) / (1024**2), 2)
+                        }
+                    
+                    # Other files (everything else)
+                    cursor.execute("""
+                        SELECT COUNT(*), COALESCE(SUM(file_size), 0)
+                        FROM resources_resource 
+                        WHERE NOT (file_name ~* '\.(pdf|doc|docx|xls|xlsx|ppt|pptx|zip|rar|7z|tar|gz|txt|rtf|odt|ods|odp|js|jsx|ts|tsx|py|java|c|cpp|h|hpp|php|sql|json|xml|html|css|scss|sass|rb|go|rs|kt|swift|dart|yaml|yml|sh|bat|ps1|mp4|avi|mov|wmv|flv|webm|mkv|m4v|3gp|mpg|mpeg|jpg|jpeg|png|gif|bmp|webp|svg|tiff|tif|ico)$')
+                    """)
+                    other_result = cursor.fetchone()
+                    if other_result:
+                        resource_stats['other'] = {
+                            'count': other_result[0],
+                            'size_mb': round((other_result[1] or 0) / (1024**2), 2)
+                        }
+                        
+                except Exception as e:
+                    print(f"Error calculating resource stats: {e}")
                     pass
                 
                 # Convert database size
