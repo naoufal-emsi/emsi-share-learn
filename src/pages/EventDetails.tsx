@@ -285,6 +285,9 @@ const EventDetails: React.FC = () => {
               Attendees
               <Badge variant="secondary" className="ml-1">{event.attendees_count}</Badge>
             </TabsTrigger>
+            {event.image_base64 && (
+              <TabsTrigger value="image-preview">Full Image</TabsTrigger>
+            )}
           </TabsList>
           
           <div className="space-y-6 mt-6">
@@ -292,11 +295,21 @@ const EventDetails: React.FC = () => {
             <Card>
               <CardContent className="p-0 overflow-hidden">
                 {event.image_base64 ? (
-                  <img 
-                    src={`data:${event.image_name?.includes('.png') ? 'image/png' : 'image/jpeg'};base64,${event.image_base64}`}
-                    alt="Event" 
-                    className="w-full max-h-[400px] object-cover"
-                  />
+                  <div className="relative group cursor-pointer" onClick={() => setActiveTab('image-preview')}>
+                    <img 
+                      src={`data:${event.image_name?.includes('.png') ? 'image/png' : 'image/jpeg'};base64,${event.image_base64}`}
+                      alt="Event" 
+                      className="w-full h-auto object-contain max-h-[600px]"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="secondary" size="sm">
+                          <ImageIcon className="h-4 w-4 mr-2" />
+                          View Full Size
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="h-[200px] flex items-center justify-center bg-muted/20">
                     <ImageIcon className="h-12 w-12 text-muted-foreground" />
@@ -501,6 +514,26 @@ const EventDetails: React.FC = () => {
             </Card>
           </TabsContent>
           
+          <TabsContent value="image-preview">
+            {event.image_base64 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Event Image - Full Size</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="w-full overflow-auto">
+                    <img 
+                      src={`data:${event.image_name?.includes('.png') ? 'image/png' : 'image/jpeg'};base64,${event.image_base64}`}
+                      alt="Event Full Size" 
+                      className="w-full h-auto object-contain"
+                      style={{ maxHeight: 'none' }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          
           {/* Media Upload Section (for teachers only) */}
           {isTeacher && event.created_by.id === user?.id && (
             <div className="mt-6">
@@ -572,9 +605,9 @@ const EventDetails: React.FC = () => {
                             reader.onloadend = async () => {
                               const base64data = reader.result as string;
                               
+                              // Use separate field for trailer to avoid overwriting main image
                               await eventsAPI.updateEvent(event.id.toString(), {
-                                trailer_upload: base64data,
-                                trailer_type: isVideo ? 'video' : 'image'
+                                video_upload: base64data // Use video_upload for trailer
                               });
                               
                               toast.success('Trailer uploaded successfully');
