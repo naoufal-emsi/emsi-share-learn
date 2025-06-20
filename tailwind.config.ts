@@ -26,9 +26,9 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#0369a1', // Deep blue
-					light: '#0ea5e9', // Lighter blue
-					dark: '#1e3a8a', // Darker blue
+					DEFAULT: '#00a651', // EMSI Tanger Green (primary brand color)
+					light: '#5dbea3', // Lighter green variant
+					dark: '#00853e', // Darker green variant
 					foreground: 'hsl(var(--primary-foreground))'
 				},
 				secondary: {
