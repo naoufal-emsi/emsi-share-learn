@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useFetcher } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -13,326 +13,314 @@ import {
   MessageSquare,
   PlusCircle,
   FileCheck,
-  CalendarDays
+  CalendarDays,
+  TrendingUp,
+  Zap,
+  BarChart3,
+  Globe,
+  Activity
 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import {roomsAPI, resourcesAPI, quizzesAPI, forumsAPI} from '@/services/api';
-import { useAuth } from '@/contexts/AuthContext'; // Assuming your hook is named useAuth
+import { roomsAPI, resourcesAPI, quizzesAPI, forumsAPI } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TeacherDashboard: React.FC = () => {
-  const [students, setStudents] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [resources, setResources] = useState([]); // Add state for resources
-  const [quizzes, setQuizzes] = useState([]); // Add state for quizzes
-  const [allStudentAnswers, setAllStudentAnswers] = useState([]); // New state for all student answers
-  const [averageScore, setAverageScore] = useState<number | null>(null); // New state for average score
-  const [averageStudentsPerRoom, setAverageStudentsPerRoom] = useState<number | null>(null);
-  const [forumTopics, setForumTopics] = useState([]);
-  const [unsolvedTopics, setUnsolvedTopics] = useState(0);
-  const [userPosts, setUserPosts] = useState(0);
-  const { user } = useAuth(); // Get user from auth context
+  const { user } = useAuth();
+  const [teacherStats, setTeacherStats] = useState({
+    totalStudents: 0,
+    totalRooms: 0,
+    totalResources: 0,
+    totalQuizzes: 0,
+    activeQuizzes: 0,
+    averageScore: 0,
+    forumTopics: 0,
+    unsolvedTopics: 0,
+    userPosts: 0,
+    averageStudentsPerRoom: 0
+  });
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStudents = async () => {
-      // Check if user and user.id exist before fetching
-      if (user && user.id) {
-        try {
-          const response = await roomsAPI.getTeacherStudents(user.id); // Use user.id here
-          // Assuming the response is the array of students directly
-          setStudents(response || []); 
-        } catch (error) {
-          console.error('Error fetching teacher students:', error); 
-        }
-      }
-    };
-
-    fetchStudents();
-  }, [user]); // Add user to dependency array so it refetches when user data is available
-
-  useEffect(() => {
-    const fetchRooms = async () => {
-      try {
-        const response = await roomsAPI.getRooms();
-        setRooms(response || []); // Set rooms state with the response, default to empty array if null
-      } catch (error) {
-        console.error('Error fetching rooms:', error);
-      }
-    };
-
-    const fetchResources = async () => {
-      try {
-        const response = await resourcesAPI.getAllResources();
-        setResources(response.results || []); // Set resources state
-      } catch (error) {
-        console.error('Error fetching all resources:', error);
-      }
-    };
-
-    const fetchQuizzes = async () => {
-      try {
-        const response = await quizzesAPI.getTeacherRoomsQuizzes();
-        // Handle the response directly since it doesn't have a results property
-        setQuizzes(Array.isArray(response) ? response : []);
-        console.log("Quizzes response:", response);
-      } catch (error) {
-        console.error('Error fetching quizzes:', error);
-      }
-    };
-
-    const fetchAllStudentAnswers = async () => { // New function to fetch all student answers
-      try {
-        const response = await quizzesAPI.getTeacherAllStudentAnswers();
-        setAllStudentAnswers(Array.isArray(response) ? response : []);
-        console.log("All student answers response:", response);
-      } catch (error) {
-        console.error('Error fetching all student answers:', error);
-      }
-    };
-    
-    // Fetch forum data
-    const fetchForumData = async () => {
-      try {
-        // Get all forum topics
-        const topicsResponse = await forumsAPI.getTopics();
-        const topics = topicsResponse.results || [];
-        setForumTopics(topics);
-        
-        // Count unsolved topics
-        const unsolved = topics.filter(topic => !topic.is_solved).length;
-        setUnsolvedTopics(unsolved);
-        
-        // Count user's posts if user is logged in
-        if (user && user.id) {
-          let userPostCount = 0;
-          
-          // Get posts for each topic and count those created by the current user
-          for (const topic of topics) {
-            try {
-              const postsResponse = await forumsAPI.getPosts(topic.id.toString());
-              const posts = postsResponse.results || [];
-              userPostCount += posts.filter(post => post.created_by && post.created_by.id === user.id).length;
-            } catch (error) {
-              console.error(`Error fetching posts for topic ${topic.id}:`, error);
-            }
-          }
-          
-          setUserPosts(userPostCount);
-        }
-      } catch (error) {
-        console.error('Error fetching forum data:', error);
-      }
-    };
-
-    fetchRooms();
-    fetchResources();
-    fetchQuizzes();
-    fetchAllStudentAnswers();
-    fetchForumData();
+    fetchTeacherData();
   }, [user]);
 
-  useEffect(() => {
-    // Calculate average score whenever allStudentAnswers changes
-    if (allStudentAnswers.length > 0) {
-      const totalScore = allStudentAnswers.reduce((sum, attempt) => sum + (attempt.score || 0), 0);
-      const avg = totalScore / allStudentAnswers.length;
-      setAverageScore(avg);
-    } else {
-      setAverageScore(0);
-    }
+  const fetchTeacherData = async () => {
+    setLoading(true);
+    try {
+      const [
+        studentsData,
+        roomsData,
+        resourcesData,
+        quizzesData,
+        forumData
+      ] = await Promise.allSettled([
+        roomsAPI.getTeacherStudents(user?.id || ''),
+        roomsAPI.getRooms(),
+        resourcesAPI.getAllResources(),
+        quizzesAPI.getTeacherRoomsQuizzes(),
+        forumsAPI.getTopics()
+      ]);
 
-    if (rooms && rooms.length > 0) {
-      const totalParticipants = rooms.reduce((sum, room) => sum + (room.participants ? room.participants.length : 0), 0);
-      setAverageStudentsPerRoom(totalParticipants / rooms.length);
-    }
+      // Process students
+      if (studentsData.status === 'fulfilled' && studentsData.value) {
+        const students = Array.isArray(studentsData.value) ? studentsData.value : [];
+        setTeacherStats(prev => ({
+          ...prev,
+          totalStudents: students.length
+        }));
+      }
 
-  }, [allStudentAnswers, rooms]); // Recalculate when allStudentAnswers changes
+      // Process rooms
+      if (roomsData.status === 'fulfilled' && roomsData.value) {
+        const rooms = Array.isArray(roomsData.value) ? roomsData.value : [];
+        const totalParticipants = rooms.reduce((sum, room) => sum + (room.participants ? room.participants.length : 0), 0);
+        setTeacherStats(prev => ({
+          ...prev,
+          totalRooms: rooms.length,
+          averageStudentsPerRoom: rooms.length > 0 ? Math.round(totalParticipants / rooms.length) : 0
+        }));
+      }
+
+      // Process resources
+      if (resourcesData.status === 'fulfilled' && resourcesData.value) {
+        const resources = resourcesData.value.results || [];
+        setTeacherStats(prev => ({
+          ...prev,
+          totalResources: resources.length
+        }));
+      }
+
+      // Process quizzes
+      if (quizzesData.status === 'fulfilled' && quizzesData.value) {
+        const quizzes = Array.isArray(quizzesData.value) ? quizzesData.value : [];
+        setTeacherStats(prev => ({
+          ...prev,
+          totalQuizzes: quizzes.length,
+          activeQuizzes: quizzes.filter(quiz => quiz.is_active).length
+        }));
+      }
+
+      // Process forum data
+      if (forumData.status === 'fulfilled' && forumData.value) {
+        const topics = forumData.value.results || [];
+        const unsolved = topics.filter(topic => !topic.is_solved).length;
+        setTeacherStats(prev => ({
+          ...prev,
+          forumTopics: topics.length,
+          unsolvedTopics: unsolved
+        }));
+      }
+
+    } catch (error) {
+      console.error('Error fetching teacher data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {/* Class Overview */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Class Overview</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Total Students</span>
-              <span className="text-sm font-medium">{students.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Rooms</span>
-              <span className="text-sm font-medium">{rooms?.length || 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Average Students per Room</span>
-              <span className="text-sm font-medium">{averageStudentsPerRoom !== null ? averageStudentsPerRoom.toFixed(2) : 'N/A'}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Resources Management */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Resources Management</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Published Resources</span>
-              <span className="text-sm font-medium">{resources.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Private Resources</span>
-              <span className="text-sm font-medium">{resources.filter(resource => resource.room).length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Most Popular</span>
-              <span className="text-sm text-muted-foreground">
-                {resources.length > 0 && resources.some(r => r.download_count !== undefined)
-                  ? resources.sort((a, b) => (b.download_count || 0) - (a.download_count || 0))[0].title
-                  : 'N/A'}
-              </span>
-            </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
+          <p className="text-muted-foreground">Manage your classes and track student progress</p>
+        </div>
+        <Button onClick={fetchTeacherData} variant="outline">
+          <TrendingUp className="h-4 w-4 mr-2" />
+          Refresh Data
+        </Button>
+      </div>
 
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Link to="/resources" className="text-xs text-primary hover:underline">
-            Manage resources
-          </Link>
-          <Button size="sm" variant="outline" className="h-8 gap-1">
-            <PlusCircle className="h-3 w-3" />
-            <span className="text-xs">Add</span>
-          </Button>
-        </CardFooter>
-      </Card>
-      
-      {/* Quiz Management */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Quiz Management</CardTitle>
-          <GraduationCap className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Total Quizzes</span>
-              <span className="text-sm font-medium">{quizzes.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Active Quizzes</span>
-              <span className="text-sm font-medium">{quizzes.filter(quiz => quiz.is_active).length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Average Score</span>
-              <span className="text-sm font-medium">{averageScore !== null ? `${averageScore.toFixed(2)}%` : 'N/A'}</span> {/* Display calculated average */}
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Link to="/quiz" className="text-xs text-primary hover:underline">
-            View all quizzes
-          </Link>
-          <Button size="sm" variant="outline" className="h-8 gap-1">
-            <PlusCircle className="h-3 w-3" />
-            <span className="text-xs">Create</span>
-          </Button>
-        </CardFooter>
-      </Card>
-      
-      {/* Forum Activity */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Forum Activity</CardTitle>
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Discussions</span>
-              <span className="text-sm font-medium">{forumTopics.length}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Unanswered Questions</span>
-              <Badge variant="destructive">{unsolvedTopics}</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Your Replies</span>
-              <span className="text-sm font-medium">{userPosts}</span>
-            </div>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Link to="/forum" className="text-xs text-primary hover:underline">
-            Moderate forum
-          </Link>
-        </CardFooter>
-      </Card>
-      
-      {/* Recent Quizzes (Duplicated to fill space) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Recent Quiz Results</CardTitle>
-          <GraduationCap className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {allStudentAnswers.length > 0 ? (
-              allStudentAnswers.slice(0, 3).map((answer, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{answer.student_name || `Student ${answer.student_id}`}</span>
-                  <span className="text-sm font-medium">{answer.score}%</span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground">No quiz results yet</p>
+      {/* Main Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        {/* Class Overview */}
+        <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Class Overview</CardTitle>
+            <Users className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-2xl font-bold">{teacherStats.totalStudents}</div>
+                <p className="text-xs text-muted-foreground">Total Students</p>
               </div>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Link to="/quiz" className="text-xs text-primary hover:underline">
-            View all quiz results
-          </Link>
-        </CardFooter>
-      </Card>
-      
-      {/* Student Activity (Duplicated to fill space) */}
+              <div className="flex justify-between text-xs">
+                <span>Rooms: {teacherStats.totalRooms}</span>
+                <span>Avg/Room: {teacherStats.averageStudentsPerRoom}</span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Link to="/rooms">
+                <Button size="sm" className="w-full">Manage Classes</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Resources Management */}
+        <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Resources</CardTitle>
+            <FileText className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-2xl font-bold text-green-600">{teacherStats.totalResources}</div>
+                <p className="text-xs text-muted-foreground">Published Resources</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Link to="/resources">
+                <Button size="sm" variant="outline" className="w-full">Manage Resources</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+
+
+        {/* Forum Activity */}
+        <Card className="border-l-4 border-l-orange-500 hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Forum Activity</CardTitle>
+            <MessageSquare className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-2xl font-bold text-orange-600">{teacherStats.forumTopics}</div>
+                <p className="text-xs text-muted-foreground">Discussions</p>
+              </div>
+              <div className="text-xs">
+                <span>Unanswered: {teacherStats.unsolvedTopics}</span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Link to="/forum">
+                <Button size="sm" variant="outline" className="w-full">Moderate Forum</Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Action Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Quick Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Link to="/rooms">
+                <Button variant="outline" className="w-full h-16 flex flex-col hover:bg-blue-50">
+                  <Users className="h-5 w-5 mb-1" />
+                  <span className="text-xs">Manage Rooms</span>
+                </Button>
+              </Link>
+              <Link to="/resources">
+                <Button variant="outline" className="w-full h-16 flex flex-col hover:bg-green-50">
+                  <FileText className="h-5 w-5 mb-1" />
+                  <span className="text-xs">Upload Resources</span>
+                </Button>
+              </Link>
+              <Link to="/quiz">
+                <Button variant="outline" className="w-full h-16 flex flex-col hover:bg-purple-50">
+                  <GraduationCap className="h-5 w-5 mb-1" />
+                  <span className="text-xs">Create Quiz</span>
+                </Button>
+              </Link>
+              <Link to="/forum">
+                <Button variant="outline" className="w-full h-16 flex flex-col hover:bg-orange-50">
+                  <MessageSquare className="h-5 w-5 mb-1" />
+                  <span className="text-xs">Answer Questions</span>
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Live Metrics */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Teaching Metrics
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Total Students</span>
+                <Badge variant="default">{teacherStats.totalStudents}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Active Quizzes</span>
+                <Badge variant="secondary">{teacherStats.activeQuizzes}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Unanswered Questions</span>
+                <Badge variant="destructive">{teacherStats.unsolvedTopics}</Badge>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Published Resources</span>
+                <Badge variant="outline">{teacherStats.totalResources}</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Teaching Overview */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Student Activity</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Teaching Overview
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Active Students</span>
-              <span className="text-sm font-medium">{students.length}</span>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-600">{teacherStats.totalStudents}</div>
+              <div className="text-sm text-muted-foreground">Students Teaching</div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Resource Downloads</span>
-              <span className="text-sm font-medium">
-                {resources.reduce((sum, resource) => sum + (resource.download_count || 0), 0)}
-              </span>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-green-600">{teacherStats.totalRooms}</div>
+              <div className="text-sm text-muted-foreground">Active Rooms</div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Quiz Participation</span>
-              <span className="text-sm font-medium">{allStudentAnswers.length}</span>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-purple-600">{teacherStats.totalQuizzes}</div>
+              <div className="text-sm text-muted-foreground">Quizzes Created</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-orange-600">{teacherStats.totalResources}</div>
+              <div className="text-sm text-muted-foreground">Resources Shared</div>
             </div>
           </div>
         </CardContent>
-        <CardFooter>
-          <Link to="/analytics" className="text-xs text-primary hover:underline">
-            View detailed stats
-          </Link>
-        </CardFooter>
       </Card>
-
     </div>
   );
 };
