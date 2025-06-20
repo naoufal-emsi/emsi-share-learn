@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { resourcesAPI, roomsAPI, quizzesAPI, forumsAPI } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import ResourceDetailDialog from '@/components/resources/ResourceDetailDialog';
 
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -35,6 +36,8 @@ const StudentDashboard: React.FC = () => {
   });
 
   const [recentResources, setRecentResources] = useState([]);
+  const [selectedResource, setSelectedResource] = useState(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,7 +62,11 @@ const StudentDashboard: React.FC = () => {
       // Process resources
       if (resourcesData.status === 'fulfilled' && resourcesData.value) {
         const resources = resourcesData.value.results || [];
-        setRecentResources(resources.slice(0, 3));
+        // Sort by most recent and take the first 3
+        const sortedResources = resources
+          .sort((a, b) => new Date(b.created_at || b.uploaded_at).getTime() - new Date(a.created_at || a.uploaded_at).getTime())
+          .slice(0, 3);
+        setRecentResources(sortedResources);
         setStudentStats(prev => ({
           ...prev,
           totalResources: resources.length,
@@ -258,7 +265,14 @@ const StudentDashboard: React.FC = () => {
             <div className="space-y-4">
               {recentResources.length > 0 ? (
                 recentResources.map((resource: any) => (
-                  <div key={resource.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div 
+                    key={resource.id} 
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setSelectedResource(resource);
+                      setIsDetailDialogOpen(true);
+                    }}
+                  >
                     <div className="flex items-center gap-3">
                       <FileText className="h-4 w-4 text-blue-500" />
                       <div>
@@ -304,6 +318,13 @@ const StudentDashboard: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Resource Detail Dialog */}
+      <ResourceDetailDialog
+        resource={selectedResource}
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+      />
     </div>
   );
 };
