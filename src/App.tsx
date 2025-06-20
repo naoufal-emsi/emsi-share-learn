@@ -28,6 +28,7 @@ import StudentRooms from "./pages/StudentRooms";
 import RoomDetails from "./pages/RoomDetails";
 import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
+import Documentation from "./pages/Documentation";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/rooms/:roomId" element={<RoomDetails />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/documentation" element={<Documentation />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

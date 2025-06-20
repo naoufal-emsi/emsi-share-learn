@@ -146,9 +146,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, toggleSidebar }) => {
           <div className="p-4 rounded-lg bg-gradient-to-r from-accent/10 to-accent/5 dark:from-accent/20 dark:to-accent/10 border border-accent/20 dark:border-accent/30">
             <h3 className="text-sm font-medium text-primary-dark dark:text-primary-light">Need Help?</h3>
             <p className="text-xs text-neutral dark:text-gray-400 mt-1">Check our documentation for help with EMSI Share.</p>
-            <Button variant="outline" size="sm" className="mt-3 w-full text-xs border-primary/30 dark:border-primary-dark/50 text-primary dark:text-primary-light hover:bg-primary dark:hover:bg-primary-dark hover:text-white">
-              View Documentation
-            </Button>
+            <Link to="/documentation">
+              <Button variant="outline" size="sm" className="mt-3 w-full text-xs border-primary/30 dark:border-primary-dark/50 text-primary dark:text-primary-light hover:bg-primary dark:hover:bg-primary-dark hover:text-white">
+                View Documentation
+              </Button>
+            </Link>
           </div>
         </div>
       )}
