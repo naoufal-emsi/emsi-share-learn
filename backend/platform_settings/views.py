@@ -13,6 +13,15 @@ class PlatformSettingsView(APIView):
     
     def get(self, request):
         """Get platform settings"""
+        # Allow unauthenticated access to check registration status
+        if not request.user.is_authenticated:
+            settings = PlatformSettings.get_settings()
+            return Response({
+                'generalSettings': {
+                    'enableRegistration': settings.enable_registration
+                }
+            })
+        
         if request.user.role not in ['admin', 'administration']:
             return Response(
                 {"detail": "Permission denied"},

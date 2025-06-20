@@ -19,6 +19,7 @@ const Settings: React.FC = () => {
   // Platform configuration state
   const [platformName, setPlatformName] = useState('EMSI Share');
   const [platformLogo, setPlatformLogo] = useState(null);
+  const [enableRegistration, setEnableRegistration] = useState(true);
   const [databaseStats, setDatabaseStats] = useState({
     used: 1.2, // GB
     total: 5, // GB
@@ -63,11 +64,7 @@ const Settings: React.FC = () => {
           
           // Update general settings
           if (settings.generalSettings) {
-            // Set form values
-            if (document.getElementById('enable-registration')) {
-              (document.getElementById('enable-registration') as HTMLInputElement).checked = 
-                settings.generalSettings.enableRegistration;
-            }
+            setEnableRegistration(settings.generalSettings.enableRegistration);
             
             if (document.getElementById('maintenance-mode')) {
               (document.getElementById('maintenance-mode') as HTMLInputElement).checked = 
@@ -140,7 +137,7 @@ const Settings: React.FC = () => {
         platformName,
         pageSizes: databaseStats.pageSizes,
         generalSettings: {
-          enableRegistration: true,
+          enableRegistration: enableRegistration,
           maintenanceMode: false,
           publicProfiles: true,
         },
@@ -208,8 +205,9 @@ const Settings: React.FC = () => {
         </div>
 
         <Tabs defaultValue="platform">
-          <TabsList className="grid w-full md:w-auto grid-cols-1 md:grid-cols-1">
+          <TabsList className="grid w-full md:w-auto grid-cols-1 md:grid-cols-2">
             <TabsTrigger value="platform">Platform</TabsTrigger>
+            <TabsTrigger value="general">General</TabsTrigger>
           </TabsList>
           
           <TabsContent value="platform" className="mt-6">
@@ -417,6 +415,41 @@ const Settings: React.FC = () => {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button onClick={handleSave} disabled={isLoading}>
+                    {isLoading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="general" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>General Settings</CardTitle>
+                <CardDescription>
+                  Configure general platform behavior and user settings.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  {/* User Registration */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label className="text-base font-medium">User Registration</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Allow new users to register accounts on the platform
+                      </p>
+                    </div>
+                    <Switch
+                      checked={enableRegistration}
+                      onCheckedChange={setEnableRegistration}
+                      disabled={isLoading}
+                    />
                   </div>
                 </div>
                 

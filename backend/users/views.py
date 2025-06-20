@@ -9,6 +9,7 @@ from django.contrib.auth.hashers import make_password
 import os
 from django.http import HttpResponse
 import base64
+from platform_settings.models import PlatformSettings
 
 User = get_user_model()
 
@@ -16,6 +17,21 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = RegisterSerializer
+    
+    def create(self, request, *args, **kwargs):
+        # Check if registration is enabled
+        try:
+            settings_obj = PlatformSettings.get_settings()
+            if not settings_obj.enable_registration:
+                return Response(
+                    {'detail': 'Registration is currently disabled by the administrator. Please contact support if you need an account.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            # If settings can't be loaded, allow registration
+            pass
+        
+        return super().create(request, *args, **kwargs)
 
 class UserDetailView(generics.RetrieveUpdateAPIView):
     queryset = User.objects.all()
