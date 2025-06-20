@@ -15,6 +15,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { roomsAPI } from '@/services/api';
 import StudentDashboard from '@/components/dashboard/StudentDashboard';
 import TeacherDashboard from '@/components/dashboard/TeacherDashboard';
+import AdministrationDashboard from '@/components/dashboard/AdministrationDashboard';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -142,42 +143,15 @@ const Dashboard: React.FC = () => {
   </Dialog>
 )}
         
-        {loading ? (
-          <div>Loading rooms...</div>
-        ) : (
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold">Your Rooms</h2>
-            {rooms.length === 0 ? (
-              <p className="text-muted-foreground">No rooms found.</p>
-            ) : (
-              <>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {(showAllRooms ? rooms : rooms.slice(0, 3)).map(room => (
-                    <li
-                      key={room.id}
-                      className="p-3 border rounded-lg shadow-sm bg-background border-zinc-200 dark:border-zinc-700 transition-colors"
-                    >
-                      <div className="font-medium text-foreground">{room.name}</div>
-                      <div className="text-sm text-muted-foreground">{room.subject}</div>
-                      <div className="text-xs text-muted-foreground">ID: {room.id}</div>
-                    </li>
-                  ))}
-                </ul>
-                {rooms.length > 3 && (
-                  <Button
-                    className="mt-2"
-                    variant="outline"
-                    onClick={() => setShowAllRooms(!showAllRooms)}
-                  >
-                    {showAllRooms ? 'Show Less' : 'Show More'}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        )}
+
         
-        {user?.role === 'student' ? <StudentDashboard /> : <TeacherDashboard />}
+        {user?.role === 'student' ? (
+          <StudentDashboard />
+        ) : user?.role === 'administration' ? (
+          <AdministrationDashboard />
+        ) : (
+          <TeacherDashboard />
+        )}
       </div>
     </MainLayout>
   );

@@ -128,8 +128,7 @@ class DatabaseStatsView(APIView):
         
         try:
             stats = DatabaseStats.get_stats()
-            serializer = DatabaseStatsSerializer(stats)
-            return Response(serializer.data)
+            return Response(stats)
         except Exception as e:
             return Response(
                 {"detail": f"Error: {str(e)}"},
