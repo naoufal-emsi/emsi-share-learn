@@ -200,8 +200,8 @@ const Events: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {events.map(event => (
-                  <Card key={event.id} className="overflow-hidden">
-                    <div className="relative h-48 overflow-hidden">
+                  <Card key={event.id} className="overflow-hidden h-[500px] flex flex-col">
+                    <div className="relative h-48 overflow-hidden flex-shrink-0">
                       <img 
                         src={event.image_base64 
                           ? `data:${event.image_type || 'image/jpeg'};base64,${event.image_base64}` 
@@ -214,14 +214,14 @@ const Events: React.FC = () => {
                         <Badge className="bg-primary hover:bg-primary-dark mb-2">
                           {getEventTypeLabel(event.event_type)}
                         </Badge>
-                        <h3 className="text-white font-semibold text-lg leading-tight">
+                        <h3 className="text-white font-semibold text-lg leading-tight line-clamp-2">
                           {event.title}
                         </h3>
                       </div>
                     </div>
                     
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground mb-4">
+                    <CardContent className="p-4 flex-1 flex flex-col">
+                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2 flex-shrink-0">
                         {event.description || 'No description provided.'}
                       </p>
                       
@@ -249,7 +249,7 @@ const Events: React.FC = () => {
                       </div>
                     </CardContent>
                     
-                    <CardFooter className="bg-muted px-4 py-3 flex items-center justify-between">
+                    <CardFooter className="bg-muted px-4 py-3 flex items-center justify-between mt-auto flex-shrink-0">
                       <div className="text-sm">
                         Organized by: <span className="font-medium">
                           {event.created_by.first_name || event.created_by.username}
