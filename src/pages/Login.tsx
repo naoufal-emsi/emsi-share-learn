@@ -92,11 +92,7 @@ const Login: React.FC = () => {
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
               
-              <div className="text-center text-sm text-gray-500 mt-4">
-                <p>Demo accounts:</p>
-                <p>student@emsi.ma / password</p>
-                <p>teacher@emsi.ma / password</p>
-              </div>
+              
             </form>
           </CardContent>
           <CardFooter className="flex justify-center">

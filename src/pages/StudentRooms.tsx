@@ -110,22 +110,24 @@ const StudentRooms: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRooms.map((room) => (
-              <Card key={room.id} className="overflow-hidden">
-                <CardHeader>
+              <Card key={room.id} className="overflow-hidden h-[260px] sm:h-[280px] md:h-[300px] flex flex-col">
+                <CardHeader className="flex-shrink-0">
                   <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{room.name}</CardTitle>
-                      <CardDescription className="mt-1">{room.subject}</CardDescription>
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base sm:text-lg line-clamp-1">{room.name}</CardTitle>
+                      <CardDescription className="mt-1 line-clamp-1 text-xs sm:text-sm">{room.subject}</CardDescription>
                     </div>
-                    <Badge variant="outline" className="ml-2">
+                    <Badge variant="outline" className="ml-2 flex-shrink-0 text-xs">
                       {room.id}
                     </Badge>
                   </div>
-                  {room.description && (
-                    <p className="text-sm text-muted-foreground mt-2">{room.description}</p>
-                  )}
+                  <div className="h-10 mt-2">
+                    {room.description && (
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{room.description}</p>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1 flex flex-col justify-between">
                   <div className="flex space-x-4 text-sm mb-4">
                     <div className="flex items-center">
                       <FileText className="h-4 w-4 mr-1 text-primary" />

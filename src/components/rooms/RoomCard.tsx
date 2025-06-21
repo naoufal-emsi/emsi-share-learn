@@ -35,22 +35,24 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader>
+    <Card className="overflow-hidden h-[280px] sm:h-[300px] md:h-[320px] flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">{room.name}</CardTitle>
-            <CardDescription className="mt-1">{room.subject}</CardDescription>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base sm:text-lg line-clamp-1">{room.name}</CardTitle>
+            <CardDescription className="mt-1 line-clamp-1 text-xs sm:text-sm">{room.subject}</CardDescription>
           </div>
-          <Badge variant="outline" className="ml-2">
+          <Badge variant="outline" className="ml-2 flex-shrink-0 text-xs">
             ID: {room.id}
           </Badge>
         </div>
-        {room.description && (
-          <p className="text-sm text-muted-foreground mt-2">{room.description}</p>
-        )}
+        <div className="h-10 mt-2">
+          {room.description && (
+            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{room.description}</p>
+          )}
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col justify-between">
         <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
           <div className="flex items-center">
             <Users className="h-4 w-4 mr-1" />
@@ -72,7 +74,7 @@ const RoomCard: React.FC<RoomCardProps> = ({ room }) => {
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between">
+      <CardFooter className="flex justify-between flex-shrink-0">
         <Button variant="outline" onClick={copyRoomId} className="flex-1 mr-2">
           <Copy className="h-4 w-4 mr-2" />
           Copy Room ID
