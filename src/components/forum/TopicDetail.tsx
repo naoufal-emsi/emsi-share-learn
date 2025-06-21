@@ -5,6 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { 
   ThumbsUp, 
   ThumbsDown,
@@ -16,7 +27,8 @@ import {
   Paperclip,
   Download,
   Search,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import RichTextEditor from '@/components/forum/RichTextEditor';
 import FileUploader from '@/components/forum/FileUploader';
@@ -88,6 +100,7 @@ const TopicDetail: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<{ file: File; base64: string } | null>(null);
   const [searchText, setSearchText] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -407,6 +420,21 @@ const TopicDetail: React.FC = () => {
     navigate(`/forum/${topicId}`, { replace: true });
   };
 
+  const handleDeleteTopic = async () => {
+    if (!topic) return;
+    
+    try {
+      await forumsAPI.deleteTopic(topic.id.toString());
+      toast.success('Topic deleted successfully');
+      navigate('/forum');
+    } catch (error) {
+      console.error('Failed to delete topic:', error);
+      toast.error('Failed to delete topic');
+    } finally {
+      setDeleteDialogOpen(false);
+    }
+  };
+
   // Check if the current user is the topic creator
   const isTopicCreator = user && topic && user.id && 
     topic.created_by && user.id.toString() === topic.created_by.id.toString();
@@ -523,6 +551,33 @@ const TopicDetail: React.FC = () => {
                   <Bookmark className="h-3 w-3 mr-1" />
                   {isSubscribed ? 'Subscribed' : 'Subscribe'}
                 </Button>
+              )}
+              {user?.role === 'administration' && (
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Topic</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete "{topic.title}"? This action cannot be undone and will delete all posts and replies in this topic.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDeleteTopic}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </div>
           </div>

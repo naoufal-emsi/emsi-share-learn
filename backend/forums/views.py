@@ -28,6 +28,19 @@ class ForumTopicViewSet(viewsets.ModelViewSet):
     serializer_class = ForumTopicSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     
+    def destroy(self, request, *args, **kwargs):
+        topic = self.get_object()
+        user = request.user
+        
+        # Allow deletion if user is administration or the creator
+        if user.role == 'administration' or topic.created_by == user:
+            return super().destroy(request, *args, **kwargs)
+        else:
+            return Response(
+                {"detail": "You do not have permission to delete this topic."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
     def create(self, request, *args, **kwargs):
         logger.info(f"Creating topic with data: {request.data}")
         try:

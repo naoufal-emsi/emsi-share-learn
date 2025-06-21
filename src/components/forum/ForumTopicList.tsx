@@ -3,16 +3,36 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   ThumbsUp, 
   MessageCircle,
   Eye,
   Tag,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  MoreVertical
 } from 'lucide-react';
 import { forumsAPI } from '@/services/api';
 import HighlightedText from './HighlightedText';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ForumTopic {
   id: number;
@@ -60,7 +80,10 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
 }) => {
   const [topics, setTopics] = useState<ForumTopic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [topicToDelete, setTopicToDelete] = useState<ForumTopic | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchTopics = async () => {
@@ -110,6 +133,26 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
     navigate(`/forum/${topicId}`);
   };
 
+  const handleDeleteTopic = async (topic: ForumTopic) => {
+    try {
+      await forumsAPI.deleteTopic(topic.id.toString());
+      setTopics(topics.filter(t => t.id !== topic.id));
+      toast.success('Topic deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete topic:', error);
+      toast.error('Failed to delete topic');
+    } finally {
+      setDeleteDialogOpen(false);
+      setTopicToDelete(null);
+    }
+  };
+
+  const openDeleteDialog = (topic: ForumTopic, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTopicToDelete(topic);
+    setDeleteDialogOpen(true);
+  };
+
   const [error, setError] = useState<string | null>(null);
 
   if (loading) {
@@ -156,23 +199,45 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
                     {topic.created_by.first_name?.[0] || topic.created_by.username[0]}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <h3 className="font-medium text-lg">
-                    {searchText ? (
-                      <HighlightedText text={topic.title} highlight={searchText} />
-                    ) : (
-                      topic.title
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium text-lg">
+                        {searchText ? (
+                          <HighlightedText text={topic.title} highlight={searchText} />
+                        ) : (
+                          topic.title
+                        )}
+                        {topic.is_solved && (
+                          <Badge variant="outline" className="ml-2 text-xs bg-green-100 text-green-800 border-green-200">Resolved</Badge>
+                        )}
+                      </h3>
+                      <div className="flex items-center text-sm text-muted-foreground mt-1">
+                        <span>{topic.created_by.first_name} {topic.created_by.last_name}</span>
+                        <span className="mx-1">•</span>
+                        <span>{new Date(topic.created_at).toLocaleDateString()}</span>
+                        <span className="mx-1">•</span>
+                        <Badge variant="secondary" className="text-xs">{topic.category.name}</Badge>
+                      </div>
+                    </div>
+                    {user?.role === 'administration' && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={(e) => openDeleteDialog(topic, e)}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Topic
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
-                    {topic.is_solved && (
-                      <Badge variant="outline" className="ml-2 text-xs bg-green-100 text-green-800 border-green-200">Resolved</Badge>
-                    )}
-                  </h3>
-                  <div className="flex items-center text-sm text-muted-foreground mt-1">
-                    <span>{topic.created_by.first_name} {topic.created_by.last_name}</span>
-                    <span className="mx-1">•</span>
-                    <span>{new Date(topic.created_at).toLocaleDateString()}</span>
-                    <span className="mx-1">•</span>
-                    <Badge variant="secondary" className="text-xs">{topic.category.name}</Badge>
                   </div>
                 </div>
               </div>
@@ -214,6 +279,26 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
           </CardContent>
         </Card>
       ))}
+      
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Topic</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{topicToDelete?.title}"? This action cannot be undone and will delete all posts and replies in this topic.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => topicToDelete && handleDeleteTopic(topicToDelete)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

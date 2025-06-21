@@ -1136,6 +1136,12 @@ export const forumsAPI = {
   
   getVoteStatus: async (postId: string) => {
     return apiRequest(`/forums/posts/${postId}/vote_status/`);
+  },
+  
+  deleteTopic: async (topicId: string) => {
+    return apiRequest(`/forums/topics/${topicId}/`, {
+      method: 'DELETE',
+    });
   }
 };
 
