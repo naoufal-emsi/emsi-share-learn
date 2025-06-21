@@ -67,7 +67,21 @@ const Notifications: React.FC = () => {
         await notificationsAPI.markAsRead(notification.id.toString());
       }
       
-      if (notification.action_url) {
+      // Handle resource notifications specially
+      if (notification.notification_type.name === 'resource_approved' || 
+          notification.notification_type.name === 'resource_rejected' ||
+          notification.notification_type.name === 'resource') {
+        // Extract resource ID from metadata or action_url
+        const resourceId = notification.metadata?.resource_id || 
+                          notification.action_url?.split('/').pop();
+        
+        if (resourceId) {
+          // Navigate to resources page with resource ID as query parameter
+          navigate(`/resources?resourceId=${resourceId}`);
+        } else {
+          navigate('/resources');
+        }
+      } else if (notification.action_url) {
         navigate(notification.action_url);
       }
     } catch (error) {

@@ -104,8 +104,8 @@ const RoomDetails: React.FC = () => {
   const navigate = useNavigate();
 
   const handleTakeQuiz = (quizId: string) => {
-    setSelectedQuizId(quizId);
-    setShowQuizModal(true);
+    // Navigate to quiz page instead of modal
+    navigate(`/quiz/${quizId}`);
   };
 
   const handleQuizDeleted = async (quizId: string) => {
@@ -438,20 +438,7 @@ const RoomDetails: React.FC = () => {
         </Tabs>
       </div>
 
-      {/* Quiz Modal */}
-      <Dialog open={showQuizModal} onOpenChange={setShowQuizModal}>
-        <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Take Quiz</DialogTitle>
-          </DialogHeader>
-          {selectedQuizId && (
-            <Quiz 
-              quizId={selectedQuizId} 
-              onClose={() => setShowQuizModal(false)} 
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+
 
       {/* Resource Detail Dialog */}
       <ResourceDetailDialog

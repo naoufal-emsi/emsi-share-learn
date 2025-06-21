@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import MainLayout from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -32,6 +33,7 @@ interface Resource {
 }
 
 const Resources: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
@@ -83,6 +85,20 @@ const Resources: React.FC = () => {
   useEffect(() => {
     fetchResources();
   }, [activeTab, searchFilters]);
+
+  // Handle resource ID from URL parameter (from notifications)
+  useEffect(() => {
+    const resourceId = searchParams.get('resourceId');
+    if (resourceId && resources.length > 0) {
+      const resource = resources.find(r => r.id === resourceId);
+      if (resource) {
+        setSelectedResource(resource);
+        setIsDetailDialogOpen(true);
+        // Remove the parameter from URL
+        setSearchParams({});
+      }
+    }
+  }, [resources, searchParams, setSearchParams]);
 
   const handleSearch = (filters: ResourceFilters) => {
     setSearchFilters(filters);
